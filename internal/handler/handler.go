@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"net/http"
 	"strconv"
@@ -30,7 +29,6 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	case models.Gauge:
 		f, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			fmt.Println(err)
 			res.WriteHeader(http.StatusBadRequest)
 		}
 		models.MemStorage[name] = models.Metrics{
@@ -55,7 +53,6 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	default:
-		fmt.Printf("Unknown metric type: %s\n", pathUrl[2])
 		res.WriteHeader(http.StatusBadRequest)
 	}
 }
