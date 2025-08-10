@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	BaseUrl = "localhost:8080"
+	BaseURL = "localhost:8080"
 	Shema   = "http"
 )
 
 type SendMetrics struct {
-	Url    map[string]url.URL
+	URL    map[string]url.URL
 	Client *http.Client
 }
 
@@ -55,8 +55,7 @@ func ConvertMemStatsInNameMetrics(memStats runtime.MemStats) map[string]string {
 
 func (s *SendMetrics) InitMetrics(mericsNameValue map[string]string) {
 	for name, value := range mericsNameValue {
-		fullUrl := createRequest(name, value)
-		s.Url[name] = fullUrl
+		s.URL[name] = createRequest(name, value)
 	}
 
 }
@@ -65,13 +64,13 @@ func createRequest(name, metrics string) url.URL {
 	fullPath := path.Join("update/", models.Gauge, strings.ToLower(name), metrics)
 	return url.URL{
 		Scheme: Shema,
-		Host:   BaseUrl,
+		Host:   BaseURL,
 		Path:   fullPath,
 	}
 }
 
 func (s *SendMetrics) DoRequest() {
-	for _, url := range s.Url {
+	for _, url := range s.URL {
 		request, err := http.NewRequest(http.MethodPost, url.String(), nil)
 		if err != nil {
 			fmt.Println(err)

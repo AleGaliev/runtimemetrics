@@ -2,8 +2,12 @@ package main
 
 import (
 	"github.com/AleGaliev/kubercontroller/internal/agent"
+	"time"
 )
 
 func main() {
-	agent.Run()
+	for {
+		agent.Run()
+		time.Sleep(2 * time.Second)
+	}
 }
