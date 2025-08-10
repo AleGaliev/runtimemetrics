@@ -20,14 +20,13 @@ var (
 )
 
 func Run() {
-	rand.Seed(time.Now().UnixNano())
 	for {
 		runtime.ReadMemStats(&metRuntime)
 		mericsNameValue := repository.ConvertMemStatsInNameMetrics(metRuntime)
 		sendMetrics.InitMetrics(mericsNameValue)
 		sendMetrics.InitMetrics(map[string]string{
 			"PollCount":   strconv.Itoa(PollCount),
-			"RandomValue": strconv.FormatFloat(rand.NormFloat64(), 'f', 10, 64),
+			"RandomValue": strconv.FormatFloat(rand.Float64(), 'f', 10, 64),
 		})
 		if PollCount%5 == 0 {
 			sendMetrics.DoRequest()
