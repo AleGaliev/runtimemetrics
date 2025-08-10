@@ -15,15 +15,15 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	pathUrl := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
+	pathURL := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
 
-	if len(pathUrl) < 4 {
+	if len(pathURL) < 4 {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	name := pathUrl[2]
-	MType := pathUrl[1]
-	value := pathUrl[3]
+	name := pathURL[2]
+	MType := pathURL[1]
+	value := pathURL[3]
 
 	switch MType {
 	case models.Gauge:
