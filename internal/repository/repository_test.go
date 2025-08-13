@@ -2,97 +2,86 @@ package repository
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"net/url"
-	"reflect"
-	"runtime"
 	"testing"
+
+	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestConvertMemStatsInNameMetrics(t *testing.T) {
+func Test_createUrlRequest(t *testing.T) {
 	type args struct {
-		memStats runtime.MemStats
-	}
-	tests := []struct {
-		name string
-		args args
-		want map[string]string
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := ConvertMemStatsInNameMetrics(tt.args.memStats); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ConvertMemStatsInNameMetrics() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSendMetrics_DoRequest(t *testing.T) {
-	type fields struct {
-		URL    map[string]url.URL
-		Client *http.Client
-	}
-	tests := []struct {
-		name   string
-		fields fields
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SendMetrics{
-				URL:    tt.fields.URL,
-				Client: tt.fields.Client,
-			}
-			s.DoRequest()
-		})
-	}
-}
-
-func TestSendMetrics_InitMetrics(t *testing.T) {
-	type fields struct {
-		URL    map[string]url.URL
-		Client *http.Client
-	}
-	type args struct {
-		mericsNameValue map[string]string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			s := &SendMetrics{
-				URL:    tt.fields.URL,
-				Client: tt.fields.Client,
-			}
-			s.InitMetrics(tt.args.mericsNameValue)
-		})
-	}
-}
-
-func Test_createRequest(t *testing.T) {
-	type args struct {
-		name    string
-		metrics string
+		name  string
+		types string
+		value string
 	}
 	tests := []struct {
 		name string
 		args args
 		want url.URL
 	}{
-		// TODO: Add test cases.
+		{
+			name: "positive",
+			args: args{
+				name:  "cpu",
+				types: "gauge",
+				value: "1234",
+			},
+			want: url.URL{
+				Scheme: "http",
+				Host:   "localhost:8080",
+				Path:   "update/gauge/cpu/1234",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := createRequest(tt.args.name, tt.args.metrics); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createRequest() = %v, want %v", got, tt.want)
+			assert.Equal(t, tt.want, createUrlRequest(tt.args.name, tt.args.types, tt.args.value))
+		})
+	}
+}
+
+func TestSendMetrics_SendMetricsRequest1(t *testing.T) {
+	allocValue := 123.45
+	buckHashValue := 67.89
+	freesValue := 0.12
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Проверяем, что метод POST
+		assert.Equal(t, r.Method, "POST")
+	}))
+	defer server.Close()
+	httpURL, _ := url.Parse(server.URL)
+	BaseURL = httpURL.Host
+
+	type fields struct {
+		Metrics []models.Metrics
+		Client  *http.Client
+	}
+	tests := []struct {
+		name   string
+		fields fields
+	}{{
+		name: "positive",
+		fields: fields{
+			Metrics: []models.Metrics{
+				{ID: "Alloc", MType: models.Gauge, Value: &allocValue},
+				{ID: "BuckHashSys", MType: models.Gauge, Value: &buckHashValue},
+				{ID: "Frees", MType: models.Gauge, Value: &freesValue},
+			},
+			Client: server.Client(),
+		},
+	},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := SendMetrics{
+				Metrics: tt.fields.Metrics,
+				Client:  tt.fields.Client,
 			}
+			s.SendMetricsRequest()
 		})
 	}
 }

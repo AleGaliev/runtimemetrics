@@ -1,38 +1,69 @@
 package agent
 
 import (
-	"github.com/AleGaliev/kubercontroller/internal/repository"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"runtime"
-	"strconv"
+
+	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/kubercontroller/internal/repository"
 )
 
 var (
 	metRuntime  = runtime.MemStats{}
 	sendMetrics = repository.SendMetrics{
-		URL:    make(map[string]url.URL),
-		Client: &http.Client{},
+		Metrics: []models.Metrics{},
+		Client:  &http.Client{},
 	}
-	PollCount = 1
+	pollCount      int64 = 1
+	pollInterval         = 2
+	reportInterval       = 10
 )
 
-func Run() {
-	runtime.ReadMemStats(&metRuntime)
+func float64Ptr(f float64) *float64 {
+	return &f
+}
 
-	mericsNameValue := repository.ConvertMemStatsInNameMetrics(metRuntime)
+func Run(counter int) {
+	if counter%pollInterval == 0 {
+		runtime.ReadMemStats(&metRuntime)
 
-	sendMetrics.InitMetrics(mericsNameValue)
-	sendMetrics.InitMetrics(map[string]string{
-		"PollCount":   strconv.Itoa(PollCount),
-		"RandomValue": strconv.FormatFloat(rand.Float64(), 'f', 10, 64),
-	})
-
-	if PollCount%5 == 0 {
-		sendMetrics.DoRequest()
+		sendMetrics.Metrics = []models.Metrics{
+			{ID: "Alloc", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.Alloc))},
+			{ID: "BuckHashSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.BuckHashSys))},
+			{ID: "Frees", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.Frees))},
+			{ID: "GCCPUFraction", MType: models.Gauge, Value: float64Ptr(metRuntime.GCCPUFraction)},
+			{ID: "GCSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.GCSys))},
+			{ID: "HeapAlloc", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapAlloc))},
+			{ID: "HeapIdle", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapIdle))},
+			{ID: "HeapInuse", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapInuse))},
+			{ID: "HeapObjects", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapObjects))},
+			{ID: "HeapReleased", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapReleased))},
+			{ID: "HeapSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.HeapSys))},
+			{ID: "LastGC", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.LastGC))},
+			{ID: "Lookups", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.Lookups))},
+			{ID: "MCacheInuse", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.MCacheInuse))},
+			{ID: "MCacheSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.MCacheSys))},
+			{ID: "MSpanInuse", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.MSpanInuse))},
+			{ID: "MSpanSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.MSpanSys))},
+			{ID: "Mallocs", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.Mallocs))},
+			{ID: "NextGC", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.NextGC))},
+			{ID: "NumForcedGC", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.NumForcedGC))},
+			{ID: "NumGC", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.NumGC))},
+			{ID: "OtherSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.OtherSys))},
+			{ID: "PauseTotalNs", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.PauseTotalNs))},
+			{ID: "StackInuse", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.StackInuse))},
+			{ID: "StackSys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.StackSys))},
+			{ID: "Sys", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.Sys))},
+			{ID: "TotalAlloc", MType: models.Gauge, Value: float64Ptr(float64(metRuntime.TotalAlloc))},
+			{ID: "RandomValue", MType: models.Gauge, Value: float64Ptr(rand.Float64())},
+			{ID: "PollCount", MType: models.Counter, Delta: &pollCount},
+		}
+		pollCount++
 	}
 
-	PollCount++
+	if counter%reportInterval == 0 {
+		sendMetrics.SendMetricsRequest()
+	}
 
 }
