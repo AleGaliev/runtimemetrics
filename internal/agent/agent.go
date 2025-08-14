@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"net/http"
 	"runtime"
+	"time"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"github.com/AleGaliev/kubercontroller/internal/repository"
@@ -13,7 +14,9 @@ var (
 	metRuntime  = runtime.MemStats{}
 	sendMetrics = repository.SendMetrics{
 		Metrics: []models.Metrics{},
-		Client:  &http.Client{},
+		Client: &http.Client{
+			Timeout: time.Duration(2 * time.Second),
+		},
 	}
 	pollCount      int64 = 1
 	pollInterval         = 2
