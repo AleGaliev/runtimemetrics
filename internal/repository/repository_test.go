@@ -37,7 +37,7 @@ func Test_createURLRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, createUrlRequest(tt.args.name, tt.args.types, tt.args.value))
+			assert.Equal(t, tt.want, createURLRequest(tt.args.name, tt.args.types, tt.args.value))
 		})
 	}
 }
