@@ -42,10 +42,8 @@ func (s SendMetrics) SendMetricsRequest() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		response, err := s.Client.Do(request)
-		if err != nil {
-			fmt.Println(err)
-		}
+		response, _ := s.Client.Do(request)
+
 		defer response.Body.Close()
 	}
 }
