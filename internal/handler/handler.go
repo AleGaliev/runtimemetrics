@@ -1,29 +1,28 @@
 package handler
 
 import (
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
+
+	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/go-chi/chi/v5"
 )
 
 type MyHandler struct{}
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		res.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
 	pathURL := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
 
 	if len(pathURL) < 4 {
 		res.WriteHeader(http.StatusNotFound)
+		fmt.Fprint(res, "404 page not found")
 		return
 	}
-	name := pathURL[2]
-	MType := pathURL[1]
-	value := pathURL[3]
+	name := chi.URLParam(req, "name")
+	MType := chi.URLParam(req, "type")
+	value := chi.URLParam(req, "value")
 
 	switch MType {
 	case models.Gauge:
@@ -55,4 +54,46 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	default:
 		res.WriteHeader(http.StatusBadRequest)
 	}
+}
+
+func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
+	metricName := chi.URLParam(req, "name")
+
+	metric, ok := models.MemStorage[metricName]
+	if !ok {
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+	switch metric.MType {
+	case models.Gauge:
+		fmt.Fprintf(res, "%g", *metric.Value)
+	case models.Counter:
+		fmt.Fprintf(res, "%d", *metric.Delta)
+	}
+	res.WriteHeader(http.StatusOK)
+}
+
+func (h MyHandler) ListMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	fmt.Fprint(w, `
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <h1>Metrics List</h1>
+    `)
+
+	for _, m := range models.MemStorage {
+		switch m.MType {
+		case models.Gauge:
+			fmt.Fprintf(w, `<p> %s: %g</p>`, m.ID, *m.Value)
+		case models.Counter:
+			fmt.Fprintf(w, `<p> %s: %d</p>`, m.ID, *m.Delta)
+		}
+	}
+
+	fmt.Fprint(w, `
+    </body>
+    </html>
+    `)
 }
