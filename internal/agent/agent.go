@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"flag"
 	"math/rand"
 	"net/http"
 	"runtime"
@@ -18,9 +19,11 @@ var (
 			Timeout: time.Duration(2 * time.Second),
 		},
 	}
-	pollCount      int64 = 1
-	pollInterval         = 2
-	reportInterval       = 10
+	pollCount int64 = 1
+	//pollInterval         = 2
+	//reportInterval       = 10
+	pollInterval   = flag.Int("p", 2, "Interval poll metrics")
+	reportInterval = flag.Int("r", 10, "Interval report metrics")
 )
 
 func float64Ptr(f float64) *float64 {
@@ -28,7 +31,7 @@ func float64Ptr(f float64) *float64 {
 }
 
 func Run(counter int) {
-	if counter%pollInterval == 0 {
+	if counter%*pollInterval == 0 {
 		runtime.ReadMemStats(&metRuntime)
 
 		sendMetrics.Metrics = []models.Metrics{
@@ -65,7 +68,7 @@ func Run(counter int) {
 		pollCount++
 	}
 
-	if counter%reportInterval == 0 {
+	if counter%*reportInterval == 0 {
 		sendMetrics.SendMetricsRequest()
 	}
 

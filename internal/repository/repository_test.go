@@ -53,7 +53,7 @@ func TestSendMetrics_SendMetricsRequest1(t *testing.T) {
 	}))
 	defer server.Close()
 	httpURL, _ := url.Parse(server.URL)
-	BaseURL = httpURL.Host
+	BaseURL = &httpURL.Host
 
 	type fields struct {
 		Metrics []models.Metrics
