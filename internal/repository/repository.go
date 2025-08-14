@@ -47,7 +47,11 @@ func (s SendMetrics) SendMetricsRequest() {
 		if err != nil {
 			fmt.Errorf("FAILED to create request: %w", err)
 		}
+		response.Body.Close()
 
-		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			fmt.Errorf("FAIL status for %s: %d", metric.ID, response.StatusCode)
+		}
 	}
+
 }
