@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func Test_createUrlRequest(t *testing.T) {
+func Test_createURLRequest(t *testing.T) {
 	type args struct {
 		name  string
 		types string

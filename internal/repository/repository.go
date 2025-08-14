@@ -19,7 +19,7 @@ type SendMetrics struct {
 	Client  *http.Client
 }
 
-func createUrlRequest(name, types, value string) url.URL {
+func createURLRequest(name, types, value string) url.URL {
 	fullPath := path.Join("update/", types, name, value)
 	return url.URL{
 		Scheme: Shema,
@@ -33,9 +33,9 @@ func (s SendMetrics) SendMetricsRequest() {
 
 		fullURL := url.URL{}
 		if metric.MType == models.Gauge {
-			fullURL = createUrlRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Value))
+			fullURL = createURLRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Value))
 		} else {
-			fullURL = createUrlRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Delta))
+			fullURL = createURLRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Delta))
 		}
 
 		request, err := http.NewRequest(http.MethodPost, fullURL.String(), nil)
