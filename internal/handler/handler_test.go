@@ -95,10 +95,10 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 
 func TestMyHandler_GetValue(t *testing.T) {
 	var (
-		allocValue    float64 = 123.45
-		buckHashValue float64 = 67.89
-		freesValue    float64 = 0.12
-		count         int64   = 3
+		allocValue          = 123.45
+		buckHashValue       = 67.89
+		freesValue          = 0.12
+		count         int64 = 3
 	)
 
 	tests := []struct {
@@ -180,10 +180,10 @@ func TestMyHandler_GetValue(t *testing.T) {
 
 func TestMyHandler_ListMetrics(t *testing.T) {
 	var (
-		allocValue    float64 = 123.45
-		buckHashValue float64 = 67.89
-		freesValue    float64 = 0.12
-		count         int64   = 3
+		allocValue          = 123.45
+		buckHashValue       = 67.89
+		freesValue          = 0.12
+		count         int64 = 3
 	)
 
 	tests := []struct {
