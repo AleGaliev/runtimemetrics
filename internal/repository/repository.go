@@ -42,7 +42,11 @@ func (s SendMetrics) SendMetricsRequest() {
 		if err != nil {
 			fmt.Println(err)
 		}
-		response, _ := s.Client.Do(request)
+		response, err := s.Client.Do(request)
+
+		if err != nil {
+			fmt.Errorf("FAILED to create request: %w", err)
+		}
 
 		defer response.Body.Close()
 	}
