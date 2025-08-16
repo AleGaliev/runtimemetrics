@@ -203,7 +203,7 @@ func TestStorage_GetMetrics(t *testing.T) {
 		{
 			name: "GetMetrics",
 			args: args{
-				name: "tetsName",
+				name: "Alloc",
 			},
 			want: "123.45",
 			ok:   true,
@@ -228,7 +228,7 @@ func TestStorage_GetMetrics(t *testing.T) {
 				t.Errorf("GetMetrics() got = %v, want %v", got, tt.want)
 			}
 			if got != tt.want {
-				t.Errorf("GetMetrics() got1 = %v, want %v", got, tt.want)
+				t.Errorf("GetMetrics() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
