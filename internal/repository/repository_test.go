@@ -57,7 +57,7 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	}))
 	defer server.Close()
 	httpURL, _ := url.Parse(server.URL)
-	clientCfg := HttpSendler{
+	clientCfg := HTTPSendler{
 		client:  server.Client(),
 		baseURL: &httpURL.Host,
 		shema:   "http",
