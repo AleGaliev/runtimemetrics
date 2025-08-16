@@ -11,15 +11,15 @@ import (
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 )
 
-type HttpSendler struct {
+type HTTPSendler struct {
 	client  *http.Client
 	baseURL *string
 	shema   string
 }
 
-func NewClientConfig() *HttpSendler {
+func NewClientConfig() *HTTPSendler {
 	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
-	return &HttpSendler{
+	return &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
@@ -37,7 +37,7 @@ func createURLRequest(shema, baseURL, name, types, value string) url.URL {
 	}
 }
 
-func (h HttpSendler) SendMetricsRequest(metrics []models.Metrics) error {
+func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	for _, metric := range metrics {
 
 		fullURL := url.URL{}
@@ -48,7 +48,7 @@ func (h HttpSendler) SendMetricsRequest(metrics []models.Metrics) error {
 		}
 		request, err := http.NewRequest(http.MethodPost, fullURL.String(), nil)
 		if err != nil {
-			return fmt.Errorf("Error creating request: %v", err)
+			return fmt.Errorf("error creating request: %v", err)
 		}
 		request.Header.Set("Content-Type", "text/plain")
 		response, err := h.client.Do(request)
