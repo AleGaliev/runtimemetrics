@@ -12,6 +12,8 @@ import (
 
 func Test_createURLRequest(t *testing.T) {
 	type args struct {
+		shema string
+		addr  string
 		name  string
 		types string
 		value string
@@ -24,6 +26,8 @@ func Test_createURLRequest(t *testing.T) {
 		{
 			name: "positive",
 			args: args{
+				shema: "http",
+				addr:  "localhost:8080",
 				name:  "cpu",
 				types: "gauge",
 				value: "1234",
@@ -37,12 +41,12 @@ func Test_createURLRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, createURLRequest(tt.args.name, tt.args.types, tt.args.value))
+			assert.Equal(t, tt.want, createURLRequest(tt.args.shema, tt.args.addr, tt.args.name, tt.args.types, tt.args.value))
 		})
 	}
 }
 
-func TestSendMetrics_SendMetricsRequest1(t *testing.T) {
+func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	allocValue := 123.45
 	buckHashValue := 67.89
 	freesValue := 0.12
@@ -53,7 +57,11 @@ func TestSendMetrics_SendMetricsRequest1(t *testing.T) {
 	}))
 	defer server.Close()
 	httpURL, _ := url.Parse(server.URL)
-	BaseURL = &httpURL.Host
+	clientCfg := HttpSendler{
+		client:  server.Client(),
+		baseURL: &httpURL.Host,
+		shema:   "http",
+	}
 
 	type fields struct {
 		Metrics []models.Metrics
@@ -77,11 +85,8 @@ func TestSendMetrics_SendMetricsRequest1(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := SendMetrics{
-				Metrics: tt.fields.Metrics,
-				Client:  tt.fields.Client,
-			}
-			s.SendMetricsRequest()
+			clientCfg.SendMetricsRequest(tt.fields.Metrics)
+
 		})
 	}
 }

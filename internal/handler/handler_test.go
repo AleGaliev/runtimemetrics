@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/kubercontroller/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
@@ -71,7 +72,10 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	h := MyHandler{}
+	memStotage := storage.CreateStorage()
+	h := &MyHandler{
+		Storage: memStotage,
+	}
 	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
 	srv := httptest.NewServer(r)
 
@@ -139,7 +143,8 @@ func TestMyHandler_GetValue(t *testing.T) {
 		},
 		// TODO: Add test cases.
 	}
-	models.MemStorage = map[string]models.Metrics{
+	memStotage := storage.CreateStorage()
+	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
 			MType: models.Gauge,
@@ -161,8 +166,11 @@ func TestMyHandler_GetValue(t *testing.T) {
 			Delta: &count,
 		},
 	}
+
 	r := chi.NewRouter()
-	h := MyHandler{}
+	h := &MyHandler{
+		Storage: memStotage,
+	}
 	r.Get("/value/{type}/{name}", h.GetValue)
 	srv := httptest.NewServer(r)
 	for _, test := range tests {
@@ -197,7 +205,8 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 			status:  200,
 		},
 	}
-	models.MemStorage = map[string]models.Metrics{
+	memStotage := storage.CreateStorage()
+	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
 			MType: models.Gauge,
@@ -220,7 +229,9 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	h := MyHandler{}
+	h := &MyHandler{
+		Storage: memStotage,
+	}
 	r.Get("/", h.ListMetrics)
 	srv := httptest.NewServer(r)
 	for _, test := range tests {

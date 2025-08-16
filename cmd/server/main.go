@@ -5,21 +5,15 @@ import (
 	"net/http"
 
 	"github.com/AleGaliev/kubercontroller/internal/handler"
-	"github.com/go-chi/chi/v5"
-)
-
-var (
-	adrHost = flag.String("a", "localhost:8080", "Endpoint http server")
+	"github.com/AleGaliev/kubercontroller/internal/storage"
 )
 
 func main() {
+	adrHost := flag.String("a", "localhost:8080", "Endpoint http server")
 	flag.Parse()
-	var h handler.MyHandler
 
-	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
-	r.Get("/value/{type}/{name}", h.GetValue)
-	r.Get("/", h.ListMetrics)
+	memStotage := storage.CreateStorage()
+	r := handler.CreateMyHandler(memStotage)
 
 	err := http.ListenAndServe(*adrHost, r)
 	if err != nil {

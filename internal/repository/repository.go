@@ -6,57 +6,62 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 )
 
-var (
-	BaseURL = flag.String("a", "localhost:8080", "Endpoint http server")
-	//BaseURL = "localhost:8080"
-	Shema = "http"
-)
-
-type SendMetrics struct {
-	Metrics []models.Metrics
-	Client  *http.Client
+type HttpSendler struct {
+	client  *http.Client
+	baseURL *string
+	shema   string
 }
 
-func createURLRequest(name, types, value string) url.URL {
+func NewClientConfig() *HttpSendler {
+	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
+	return &HttpSendler{
+		client: &http.Client{
+			Timeout: 2 * time.Second,
+		},
+		shema:   "http",
+		baseURL: baseURL,
+	}
+}
+
+func createURLRequest(shema, baseURL, name, types, value string) url.URL {
 	fullPath := path.Join("update/", types, name, value)
 	return url.URL{
-		Scheme: Shema,
-		Host:   *BaseURL,
+		Scheme: shema,
+		Host:   baseURL,
 		Path:   fullPath,
 	}
 }
 
-func (s SendMetrics) SendMetricsRequest() {
-	for _, metric := range s.Metrics {
+func (h HttpSendler) SendMetricsRequest(metrics []models.Metrics) error {
+	for _, metric := range metrics {
 
 		fullURL := url.URL{}
 		if metric.MType == models.Gauge {
-			fullURL = createURLRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Value))
+			fullURL = createURLRequest(h.shema, *h.baseURL, metric.ID, metric.MType, fmt.Sprint(*metric.Value))
 		} else {
-			fullURL = createURLRequest(metric.ID, metric.MType, fmt.Sprint(*metric.Delta))
+			fullURL = createURLRequest(h.shema, *h.baseURL, metric.ID, metric.MType, fmt.Sprint(*metric.Delta))
 		}
 		request, err := http.NewRequest(http.MethodPost, fullURL.String(), nil)
 		if err != nil {
-			fmt.Println("Error creating request:", err)
-			return
+			return fmt.Errorf("Error creating request: %v", err)
 		}
 		request.Header.Set("Content-Type", "text/plain")
-		response, err := s.Client.Do(request)
+		response, err := h.client.Do(request)
 
 		if err != nil {
-			fmt.Println("error:", err)
-			return
+			return fmt.Errorf("error sending request: %v", err)
 		}
 		response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
-			fmt.Println("Status Code: ", response.StatusCode)
-			return
+			return fmt.Errorf("error sending request: %d %s", response.StatusCode, response.Status)
 		}
 	}
+	return nil
 
 }

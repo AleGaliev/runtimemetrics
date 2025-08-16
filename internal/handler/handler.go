@@ -3,14 +3,32 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"github.com/go-chi/chi/v5"
 )
 
-type MyHandler struct{}
+type Storage interface {
+	AddMetric(myType, name, value string) error
+	GetMetrics(name string) (string, bool)
+	GetAllMetric() string
+}
+type MyHandler struct {
+	Storage Storage
+}
+
+func CreateMyHandler(storage Storage) http.Handler {
+	h := &MyHandler{
+		Storage: storage,
+	}
+
+	r := chi.NewRouter()
+	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
+	r.Get("/value/{type}/{name}", h.GetValue)
+	r.Get("/", h.ListMetrics)
+
+	return r
+}
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	pathURL := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
@@ -21,37 +39,11 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	name := chi.URLParam(req, "name")
-	MType := chi.URLParam(req, "type")
+	myType := chi.URLParam(req, "type")
 	value := chi.URLParam(req, "value")
 
-	switch MType {
-	case models.Gauge:
-		f, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-		}
-		models.MemStorage[name] = models.Metrics{
-			ID:    name,
-			MType: MType,
-			Value: &f,
-		}
-
-	case models.Counter:
-		i, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if metrics, exists := models.MemStorage[name]; exists {
-			*metrics.Delta += i
-		} else {
-			models.MemStorage[name] = models.Metrics{
-				ID:    name,
-				MType: MType,
-				Delta: &i,
-			}
-		}
-	default:
+	err := h.Storage.AddMetric(myType, name, value)
+	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 	}
 }
@@ -59,40 +51,32 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 	metricName := chi.URLParam(req, "name")
 
-	metric, ok := models.MemStorage[metricName]
+	metric, ok := h.Storage.GetMetrics(metricName)
 	if !ok {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	switch metric.MType {
-	case models.Gauge:
-		fmt.Fprintf(res, "%g", *metric.Value)
-	case models.Counter:
-		fmt.Fprintf(res, "%d", *metric.Delta)
-	}
 	res.WriteHeader(http.StatusOK)
+	fmt.Fprintf(res, "%s", metric)
+
 }
 
-func (h MyHandler) ListMetrics(w http.ResponseWriter, r *http.Request) {
+func (h MyHandler) ListMetrics(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	body := h.Storage.GetAllMetric()
 
 	fmt.Fprint(w, `
     <!DOCTYPE html>
     <html>
     <body>
         <h1>Metrics List</h1>
+		<ul>
     `)
-
-	for _, m := range models.MemStorage {
-		switch m.MType {
-		case models.Gauge:
-			fmt.Fprintf(w, `<p> %s: %g</p>`, m.ID, *m.Value)
-		case models.Counter:
-			fmt.Fprintf(w, `<p> %s: %d</p>`, m.ID, *m.Delta)
-		}
-	}
+	fmt.Fprintf(w, `%s`, body)
 
 	fmt.Fprint(w, `
+	</ul>
     </body>
     </html>
     `)
