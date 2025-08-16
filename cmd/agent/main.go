@@ -2,16 +2,23 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"time"
 
 	"github.com/AleGaliev/kubercontroller/internal/agent"
+	"github.com/AleGaliev/kubercontroller/internal/repository"
 )
 
 func main() {
-	counter := 0
+	clientCfg := repository.NewClientConfig()
+	agentCfg := agent.NewAgentConfig(clientCfg)
+
 	flag.Parse()
+
 	for {
-		agent.Run(counter)
+		if err := agentCfg.Run(); err != nil {
+			fmt.Println(err)
+		}
 		time.Sleep(1 * time.Second)
 	}
 }

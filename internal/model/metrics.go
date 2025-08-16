@@ -5,9 +5,9 @@ const (
 	Gauge   = "gauge"
 )
 
-var (
-	MemStorage = make(map[string]Metrics)
-)
+//var (
+//	MemStorage = make(map[string]Metrics)
+//)
 
 // NOTE: Не усложняем пример, вводя иерархическую вложенность структур.
 // Органичиваясь плоской моделью.
