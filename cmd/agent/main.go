@@ -7,11 +7,16 @@ import (
 	"time"
 
 	"github.com/AleGaliev/kubercontroller/internal/agent"
+	"github.com/AleGaliev/kubercontroller/internal/logger"
 	"github.com/AleGaliev/kubercontroller/internal/repository"
 )
 
 func main() {
-	clientCfg := repository.NewClientConfig()
+	logServer, err := logger.CreateLogger()
+	if err != nil {
+		panic(err)
+	}
+	clientCfg := repository.NewClientConfig(logServer)
 	agentCfg, err := agent.NewAgentConfig(clientCfg)
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", err)

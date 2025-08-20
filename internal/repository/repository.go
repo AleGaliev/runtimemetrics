@@ -12,13 +12,17 @@ import (
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 )
 
+type logger interface {
+	CreateResponseLog(statusCode int, large int64)
+}
 type HTTPSendler struct {
 	client  *http.Client
 	baseURL *string
 	shema   string
+	logger  logger
 }
 
-func NewClientConfig() *HTTPSendler {
+func NewClientConfig(logger logger) *HTTPSendler {
 	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
 	if ok {
@@ -30,6 +34,7 @@ func NewClientConfig() *HTTPSendler {
 		},
 		shema:   "http",
 		baseURL: baseURL,
+		logger:  logger,
 	}
 }
 
@@ -64,9 +69,12 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 		response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
+			h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 			return fmt.Errorf("error sending request: %d %s", response.StatusCode, response.Status)
 		}
+		h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 	}
+
 	return nil
 
 }
