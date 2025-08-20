@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/AleGaliev/kubercontroller/internal/agent"
@@ -11,7 +12,10 @@ import (
 
 func main() {
 	clientCfg := repository.NewClientConfig()
-	agentCfg := agent.NewAgentConfig(clientCfg)
+	agentCfg, err := agent.NewAgentConfig(clientCfg)
+	if err != nil {
+		log.Fatalf("error parsing agent config: %v", err)
+	}
 
 	flag.Parse()
 

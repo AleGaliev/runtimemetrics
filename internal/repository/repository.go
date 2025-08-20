@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"path"
 	"time"
 
@@ -19,6 +20,10 @@ type HTTPSendler struct {
 
 func NewClientConfig() *HTTPSendler {
 	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
+	varAdrHost, ok := os.LookupEnv("ADDRESS")
+	if ok {
+		baseURL = &varAdrHost
+	}
 	return &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,

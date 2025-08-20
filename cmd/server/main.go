@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"os"
 
 	"github.com/AleGaliev/kubercontroller/internal/handler"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
@@ -10,6 +11,10 @@ import (
 
 func main() {
 	adrHost := flag.String("a", "localhost:8080", "Endpoint http server")
+	varAdrHost, ok := os.LookupEnv("ADDRESS")
+	if ok {
+		adrHost = &varAdrHost
+	}
 	flag.Parse()
 
 	memStotage := storage.CreateStorage()
