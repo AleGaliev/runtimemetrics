@@ -29,22 +29,23 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 		logger:  logger,
 	}
 
-	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
-	r.Get("/value/{type}/{name}", h.GetValue)
-	r.Get("/", h.ListMetrics)
+	mux := chi.NewRouter()
 
-	return r
+	mux.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
+	mux.Get("/value/{type}/{name}", h.GetValue)
+	mux.Get("/", h.ListMetrics)
+
+	muxMiddlewareLogger := h.MiddlewareHandlerLogger(mux)
+
+	return muxMiddlewareLogger
 }
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	start := time.Now()
 	pathURL := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
 
 	if len(pathURL) < 4 {
 		res.WriteHeader(http.StatusNotFound)
 		fmt.Fprint(res, "404 page not found")
-		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
 		return
 	}
 	name := chi.URLParam(req, "name")
@@ -54,29 +55,23 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	err := h.Storage.AddMetric(myType, name, value)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
-		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
 		return
 	}
-	h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
 }
 
 func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
-	start := time.Now()
 	metricName := chi.URLParam(req, "name")
 
 	metric, ok := h.Storage.GetMetrics(metricName)
 	if !ok {
 		res.WriteHeader(http.StatusNotFound)
-		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
 		return
 	}
 	res.WriteHeader(http.StatusOK)
 	fmt.Fprintf(res, "%s", metric)
-	h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
 }
 
 func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
-	start := time.Now()
 	res.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	body := h.Storage.GetAllMetric()
@@ -95,5 +90,12 @@ func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
     </body>
     </html>
     `)
-	h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
+}
+
+func (h MyHandler) MiddlewareHandlerLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(res, req)
+		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
+	})
 }

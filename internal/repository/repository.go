@@ -61,7 +61,8 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 			return fmt.Errorf("error creating request: %v", err)
 		}
 		request.Header.Set("Content-Type", "text/plain")
-		response, err := h.client.Do(request)
+
+		response, err := h.MiddlewareLoggerDo(request)
 
 		if err != nil {
 			return fmt.Errorf("error sending request: %v", err)
@@ -69,12 +70,18 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 		response.Body.Close()
 
 		if response.StatusCode != http.StatusOK {
-			h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 			return fmt.Errorf("error sending request: %d %s", response.StatusCode, response.Status)
 		}
-		h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 	}
 
 	return nil
+}
 
+func (h HTTPSendler) MiddlewareLoggerDo(req *http.Request) (*http.Response, error) {
+	response, err := h.client.Do(req)
+	h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }

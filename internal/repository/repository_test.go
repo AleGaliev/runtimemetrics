@@ -1,13 +1,13 @@
 package repository
 
 import (
+	agentlogger "github.com/AleGaliev/kubercontroller/internal/logger"
+	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-
-	models "github.com/AleGaliev/kubercontroller/internal/model"
-	"github.com/stretchr/testify/assert"
 )
 
 func Test_createURLRequest(t *testing.T) {
@@ -57,10 +57,15 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	}))
 	defer server.Close()
 	httpURL, _ := url.Parse(server.URL)
+	loggerAgent, err := agentlogger.CreateLogger()
+	if err != nil {
+		t.Fatal(err)
+	}
 	clientCfg := HTTPSendler{
 		client:  server.Client(),
 		baseURL: &httpURL.Host,
 		shema:   "http",
+		logger:  loggerAgent,
 	}
 
 	type fields struct {
