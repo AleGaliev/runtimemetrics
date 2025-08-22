@@ -81,24 +81,55 @@ func (s *Storage) GetAllMetric() string {
 
 func (s *Storage) UpdateMetrics(r io.Reader) error {
 	data := json.NewDecoder(r)
-	var metrics models.Metrics
-	if err := data.Decode(&metrics); err != nil {
+	var metricsData models.Metrics
+	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
-	s.Metrics[metrics.ID] = metrics
+
+	switch metricsData.MType {
+
+	case models.Gauge:
+		if metricsData.Value == nil {
+			return fmt.Errorf("metrics value is nil")
+		}
+		s.Metrics[metricsData.ID] = metricsData
+
+	case models.Counter:
+
+		if metricsData.Delta == nil {
+			return fmt.Errorf("metrics delta is nil")
+		}
+
+		if metric, exists := s.Metrics[metricsData.ID]; exists {
+			*metric.Delta += *metricsData.Delta
+		} else {
+			s.Metrics[metricsData.ID] = metricsData
+		}
+	default:
+		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
+	}
+
 	return nil
 }
 
-func (s *Storage) ValueMetrics(r io.Reader) ([]byte, error) {
+func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 	data := json.NewDecoder(r)
 	var metrics models.Metrics
 	if err := data.Decode(&metrics); err != nil {
-		return nil, fmt.Errorf("could not decode metrics: %v", err)
+		return nil, false, fmt.Errorf("could not decode metrics: %v", err)
+	}
+	if (metrics.MType != models.Counter && metrics.MType != models.Gauge) || metrics.ID == "" {
+		return nil, false, fmt.Errorf("invalid metric type: %s", metrics.MType)
 	}
 
-	resp, err := json.MarshalIndent(s.Metrics[metrics.ID], "", "  ")
-	if err != nil {
-		return nil, fmt.Errorf("could not encode metrics: %v", err)
+	metric, ok := s.Metrics[metrics.ID]
+	if !ok {
+		return nil, false, nil
 	}
-	return resp, nil
+
+	resp, err := json.MarshalIndent(metric, "", "  ")
+	if err != nil {
+		return nil, false, fmt.Errorf("could not encode metrics: %v", err)
+	}
+	return resp, true, nil
 }

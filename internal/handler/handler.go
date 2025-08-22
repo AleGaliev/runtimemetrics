@@ -19,7 +19,7 @@ type Storage interface {
 	GetMetrics(name string) (string, bool)
 	GetAllMetric() string
 	UpdateMetrics(r io.Reader) error
-	ValueMetrics(r io.Reader) ([]byte, error)
+	ValueMetrics(r io.Reader) ([]byte, bool, error)
 }
 type MyHandler struct {
 	Storage Storage
@@ -34,10 +34,16 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 
 	mux := chi.NewRouter()
 
-	mux.Post("/update", h.ServeHTTPUpdate)
-	mux.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
-	mux.Post("/value", h.ServeHTTPValue)
-	mux.Get("/value/{type}/{name}", h.GetValue)
+	mux.Route("/update", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPUpdate)
+		r.Post("/{type}/{name}/{value}", h.ServeHTTP)
+	})
+
+	mux.Route("/value", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPValue)
+		r.Get("/{type}/{name}", h.GetValue)
+	})
+
 	mux.Get("/", h.ListMetrics)
 
 	muxMiddlewareLogger := h.MiddlewareHandlerLogger(mux)
@@ -55,9 +61,13 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	metrics, err := h.Storage.ValueMetrics(req.Body)
+	metrics, ok, err := h.Storage.ValueMetrics(req.Body)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if ok != true {
+		res.WriteHeader(http.StatusNotFound)
 		return
 	}
 	fmt.Fprintf(res, "%s", metrics)

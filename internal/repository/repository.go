@@ -67,9 +67,9 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 
 func (h HTTPSendler) MiddlewareLoggerDo(req *http.Request) (*http.Response, error) {
 	response, err := h.client.Do(req)
-	h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 	if err != nil {
 		return nil, err
 	}
+	h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 	return response, nil
 }
