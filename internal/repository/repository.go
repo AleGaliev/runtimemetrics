@@ -1,12 +1,13 @@
 package repository
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"time"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
@@ -16,10 +17,11 @@ type logger interface {
 	CreateResponseLog(statusCode int, large int64)
 }
 type HTTPSendler struct {
-	client  *http.Client
-	baseURL *string
-	shema   string
-	logger  logger
+	client *http.Client
+	//baseURL *string
+	//shema   string
+	url    url.URL
+	logger logger
 }
 
 func NewClientConfig(logger logger) *HTTPSendler {
@@ -32,35 +34,25 @@ func NewClientConfig(logger logger) *HTTPSendler {
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
-		shema:   "http",
-		baseURL: baseURL,
-		logger:  logger,
-	}
-}
-
-func createURLRequest(shema, baseURL, name, types, value string) url.URL {
-	fullPath := path.Join("update/", types, name, value)
-	return url.URL{
-		Scheme: shema,
-		Host:   baseURL,
-		Path:   fullPath,
+		url: url.URL{
+			Scheme: "http",
+			Host:   *baseURL,
+			Path:   "update",
+		},
+		logger: logger,
 	}
 }
 
 func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	for _, metric := range metrics {
 
-		fullURL := url.URL{}
-		if metric.MType == models.Gauge {
-			fullURL = createURLRequest(h.shema, *h.baseURL, metric.ID, metric.MType, fmt.Sprint(*metric.Value))
-		} else {
-			fullURL = createURLRequest(h.shema, *h.baseURL, metric.ID, metric.MType, fmt.Sprint(*metric.Delta))
-		}
-		request, err := http.NewRequest(http.MethodPost, fullURL.String(), nil)
+		jsonMetrics, err := json.Marshal(metric)
+
+		request, err := http.NewRequest(http.MethodPost, h.url.String(), bytes.NewBuffer(jsonMetrics))
 		if err != nil {
 			return fmt.Errorf("error creating request: %v", err)
 		}
-		request.Header.Set("Content-Type", "text/plain")
+		request.Header.Set("Content-Type", "application/json")
 
 		response, err := h.MiddlewareLoggerDo(request)
 

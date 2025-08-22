@@ -1,50 +1,15 @@
 package repository
 
 import (
-	agentlogger "github.com/AleGaliev/kubercontroller/internal/logger"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
-)
 
-func Test_createURLRequest(t *testing.T) {
-	type args struct {
-		shema string
-		addr  string
-		name  string
-		types string
-		value string
-	}
-	tests := []struct {
-		name string
-		args args
-		want url.URL
-	}{
-		{
-			name: "positive",
-			args: args{
-				shema: "http",
-				addr:  "localhost:8080",
-				name:  "cpu",
-				types: "gauge",
-				value: "1234",
-			},
-			want: url.URL{
-				Scheme: "http",
-				Host:   "localhost:8080",
-				Path:   "update/gauge/cpu/1234",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, createURLRequest(tt.args.shema, tt.args.addr, tt.args.name, tt.args.types, tt.args.value))
-		})
-	}
-}
+	agentlogger "github.com/AleGaliev/kubercontroller/internal/logger"
+	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/stretchr/testify/assert"
+)
 
 func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	allocValue := 123.45
@@ -62,10 +27,9 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	clientCfg := HTTPSendler{
-		client:  server.Client(),
-		baseURL: &httpURL.Host,
-		shema:   "http",
-		logger:  loggerAgent,
+		client: server.Client(),
+		url:    url.URL{Scheme: httpURL.Scheme, Host: httpURL.Host, Path: httpURL.Path},
+		logger: loggerAgent,
 	}
 
 	type fields struct {

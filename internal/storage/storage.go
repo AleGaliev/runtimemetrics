@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"strconv"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
@@ -75,4 +77,28 @@ func (s *Storage) GetAllMetric() string {
 		}
 	}
 	return result
+}
+
+func (s *Storage) UpdateMetrics(r io.Reader) error {
+	data := json.NewDecoder(r)
+	var metrics models.Metrics
+	if err := data.Decode(&metrics); err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	s.Metrics[metrics.ID] = metrics
+	return nil
+}
+
+func (s *Storage) ValueMetrics(r io.Reader) ([]byte, error) {
+	data := json.NewDecoder(r)
+	var metrics models.Metrics
+	if err := data.Decode(&metrics); err != nil {
+		return nil, fmt.Errorf("could not decode metrics: %v", err)
+	}
+
+	resp, err := json.MarshalIndent(s.Metrics[metrics.ID], "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("could not encode metrics: %v", err)
+	}
+	return resp, nil
 }
