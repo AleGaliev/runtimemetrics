@@ -3,11 +3,9 @@ package repository
 import (
 	"bytes"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
@@ -24,20 +22,14 @@ type HTTPSendler struct {
 	logger logger
 }
 
-func NewClientConfig(logger logger) *HTTPSendler {
-	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
-	varAdrHost, ok := os.LookupEnv("ADDRESS")
-	if ok {
-		baseURL = &varAdrHost
-	}
-	flag.Parse()
+func NewClientConfig(logger logger, baseURL string) *HTTPSendler {
 	return &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
 		url: &url.URL{
 			Scheme: "http",
-			Host:   *baseURL,
+			Host:   baseURL,
 			Path:   "update",
 		},
 		logger: logger,
