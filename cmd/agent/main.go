@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -21,8 +20,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", err)
 	}
-
-	flag.Parse()
 
 	for {
 		if err := agentCfg.Run(); err != nil {

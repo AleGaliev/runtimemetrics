@@ -20,7 +20,7 @@ type HTTPSendler struct {
 	client *http.Client
 	//baseURL *string
 	//shema   string
-	url    url.URL
+	url    *url.URL
 	logger logger
 }
 
@@ -30,11 +30,12 @@ func NewClientConfig(logger logger) *HTTPSendler {
 	if ok {
 		baseURL = &varAdrHost
 	}
+	flag.Parse()
 	return &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
-		url: url.URL{
+		url: &url.URL{
 			Scheme: "http",
 			Host:   *baseURL,
 			Path:   "update",
@@ -47,6 +48,9 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	for _, metric := range metrics {
 
 		jsonMetrics, err := json.Marshal(metric)
+		if err != nil {
+			return fmt.Errorf("could not marshal metrics: %v", err)
+		}
 
 		request, err := http.NewRequest(http.MethodPost, h.url.String(), bytes.NewBuffer(jsonMetrics))
 		if err != nil {

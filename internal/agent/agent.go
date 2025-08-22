@@ -42,6 +42,7 @@ func NewAgentConfig(rep Rep) (*AgentConfig, error) {
 		}
 		reportInterval = &StrReportInterval
 	}
+	flag.Parse()
 	return &AgentConfig{
 		pollCount:      1,
 		counter:        1,
