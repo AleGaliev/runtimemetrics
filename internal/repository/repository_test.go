@@ -26,9 +26,10 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	clientCfg := HTTPSendler{
 		client: server.Client(),
-		url:    url.URL{Scheme: httpURL.Scheme, Host: httpURL.Host, Path: httpURL.Path},
+		url:    &url.URL{Scheme: httpURL.Scheme, Host: httpURL.Host, Path: httpURL.Path},
 		logger: loggerAgent,
 	}
 
