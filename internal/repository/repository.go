@@ -2,6 +2,7 @@ package repository
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -44,11 +45,23 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 			return fmt.Errorf("could not marshal metrics: %v", err)
 		}
 
-		request, err := http.NewRequest(http.MethodPost, h.url.String(), bytes.NewBuffer(jsonMetrics))
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, err := gz.Write(jsonMetrics); err != nil {
+			return fmt.Errorf("could not gzip metrics: %v", err)
+		}
+		if err := gz.Close(); err != nil {
+			return fmt.Errorf("could not gzip metrics: %v", err)
+		}
+
+		request, err := http.NewRequest(http.MethodPost, h.url.String(), &buf)
+
 		if err != nil {
 			return fmt.Errorf("error creating request: %v", err)
 		}
+		request.Header.Set("Content-Encoding", "gzip")
 		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept-Encoding", "gzip")
 
 		response, err := h.MiddlewareLoggerDo(request)
 

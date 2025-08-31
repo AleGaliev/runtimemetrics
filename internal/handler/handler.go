@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+type gzipWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (w gzipWriter) Write(b []byte) (int, error) {
+	// w.Writer будет отвечать за gzip-сжатие, поэтому пишем в него
+	return w.Writer.Write(b)
+}
 
 type logger interface {
 	CreateRequestLog(url, method string, timestamp time.Time)
@@ -46,8 +57,8 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 	})
 
 	mux.Get("/", h.ListMetrics)
-
-	muxMiddlewareLogger := h.MiddlewareHandlerLogger(mux)
+	muxGzip := h.GzipMiddlewareHandler(mux)
+	muxMiddlewareLogger := h.MiddlewareHandlerLogger(muxGzip)
 
 	return muxMiddlewareLogger
 }
@@ -111,6 +122,8 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
+
 	metricName := chi.URLParam(req, "name")
 
 	metric, ok := h.Storage.GetMetrics(metricName)
@@ -123,8 +136,7 @@ func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "text/html; charset=utf-8")
-
+	res.Header().Set("Content-Type", "text/html")
 	body := h.Storage.GetAllMetric()
 
 	fmt.Fprint(res, `
@@ -148,5 +160,41 @@ func (h MyHandler) MiddlewareHandlerLogger(next http.Handler) http.Handler {
 		start := time.Now()
 		next.ServeHTTP(res, req)
 		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
+	})
+}
+
+func (h MyHandler) GzipMiddlewareHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+			// если gzip не поддерживается, передаём управление
+			// дальше без изменений
+			next.ServeHTTP(res, req)
+			return
+		}
+		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+			fmt.Println(req.Header.Get("Content-Encoding"))
+			dgz, err := gzip.NewReader(req.Body)
+			if err != nil {
+				res.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			req.Body = struct {
+				io.Reader
+				io.Closer
+			}{dgz, req.Body}
+			defer dgz.Close()
+		}
+
+		// создаём gzip.Writer поверх текущего w
+		gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+		if err != nil {
+			io.WriteString(res, err.Error())
+			return
+		}
+		defer gz.Close()
+
+		res.Header().Set("Content-Encoding", "gzip")
+		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+		next.ServeHTTP(gzipWriter{ResponseWriter: res, Writer: gz}, req)
 	})
 }
