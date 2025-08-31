@@ -1,33 +1,94 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 )
+
+type logger interface {
+	CreateRequestLog(url, method string, timestamp time.Time)
+}
 
 type Storage interface {
 	AddMetric(myType, name, value string) error
 	GetMetrics(name string) (string, bool)
 	GetAllMetric() string
+	UpdateMetrics(r io.Reader) error
+	ValueMetrics(r io.Reader) ([]byte, bool, error)
 }
 type MyHandler struct {
 	Storage Storage
+	logger  logger
 }
 
-func CreateMyHandler(storage Storage) http.Handler {
+func CreateMyHandler(storage Storage, logger logger) http.Handler {
 	h := &MyHandler{
 		Storage: storage,
+		logger:  logger,
 	}
 
-	r := chi.NewRouter()
-	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
-	r.Get("/value/{type}/{name}", h.GetValue)
-	r.Get("/", h.ListMetrics)
+	mux := chi.NewRouter()
 
-	return r
+	mux.Route("/update/", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPUpdate)
+		r.Post("/{type}/{name}/{value}", h.ServeHTTP)
+	})
+
+	mux.Route("/value/", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPValue)
+		r.Get("/{type}/{name}", h.GetValue)
+	})
+
+	mux.Get("/", h.ListMetrics)
+
+	muxMiddlewareLogger := h.MiddlewareHandlerLogger(mux)
+
+	return muxMiddlewareLogger
+}
+
+// получение метрики в формате json
+func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := h.Storage.UpdateMetrics(req.Body); err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Запрос обработан",
+	}
+	json.NewEncoder(res).Encode(response)
+	//res.Write(metrics)
+}
+
+// Добавлении метрик в формате json
+func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	metrics, ok, err := h.Storage.ValueMetrics(req.Body)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if !ok {
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+	res.Write(metrics)
 }
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -45,6 +106,7 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	err := h.Storage.AddMetric(myType, name, value)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
+		return
 	}
 }
 
@@ -58,26 +120,33 @@ func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 	}
 	res.WriteHeader(http.StatusOK)
 	fmt.Fprintf(res, "%s", metric)
-
 }
 
-func (h MyHandler) ListMetrics(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	body := h.Storage.GetAllMetric()
 
-	fmt.Fprint(w, `
+	fmt.Fprint(res, `
     <!DOCTYPE html>
     <html>
     <body>
         <h1>Metrics List</h1>
 		<ul>
     `)
-	fmt.Fprintf(w, `%s`, body)
+	fmt.Fprintf(res, `%s`, body)
 
-	fmt.Fprint(w, `
+	fmt.Fprint(res, `
 	</ul>
     </body>
     </html>
     `)
+}
+
+func (h MyHandler) MiddlewareHandlerLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(res, req)
+		h.logger.CreateRequestLog(req.RequestURI, req.Method, start)
+	})
 }
