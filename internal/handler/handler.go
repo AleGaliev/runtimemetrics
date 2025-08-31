@@ -55,7 +55,7 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 // получение метрики в формате json
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	if req.Header.Get("Content-Type") != "application/json" {
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -69,13 +69,13 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 		"message": "Запрос обработан",
 	}
 	json.NewEncoder(res).Encode(response)
-
+	//res.Write(metrics)
 }
 
 // Добавлении метрик в формате json
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
-	if req.Header.Get("Content-Type") != "application/json" {
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}

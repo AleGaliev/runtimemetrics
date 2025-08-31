@@ -30,7 +30,7 @@ func NewClientConfig(logger logger, baseURL string) *HTTPSendler {
 		url: &url.URL{
 			Scheme: "http",
 			Host:   baseURL,
-			Path:   "update",
+			Path:   "update/",
 		},
 		logger: logger,
 	}
