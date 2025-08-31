@@ -121,12 +121,17 @@ func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 	if (metrics.MType != models.Counter && metrics.MType != models.Gauge) || metrics.ID == "" {
 		return nil, false, fmt.Errorf("invalid metric type: %s", metrics.MType)
 	}
+	if metrics.Value != nil || metrics.Delta != nil {
+		return nil, false, fmt.Errorf("invalid metric type: %s", metrics.MType)
+	}
 
 	metric, ok := s.Metrics[metrics.ID]
 	if !ok {
 		return nil, false, nil
 	}
-
+	if metric.MType != metrics.MType {
+		return nil, false, fmt.Errorf("invalid metric type: %s", metrics.MType)
+	}
 	resp, err := json.MarshalIndent(metric, "", "  ")
 	if err != nil {
 		return nil, false, fmt.Errorf("could not encode metrics: %v", err)

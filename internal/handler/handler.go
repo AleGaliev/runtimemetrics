@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,12 +35,12 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 
 	mux := chi.NewRouter()
 
-	mux.Route("/update", func(r chi.Router) {
+	mux.Route("/update/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPUpdate)
 		r.Post("/{type}/{name}/{value}", h.ServeHTTP)
 	})
 
-	mux.Route("/value", func(r chi.Router) {
+	mux.Route("/value/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPValue)
 		r.Get("/{type}/{name}", h.GetValue)
 	})
@@ -51,26 +52,43 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 	return muxMiddlewareLogger
 }
 
+// получение метрики в формате json
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
+	if req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	if err := h.Storage.UpdateMetrics(req.Body); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Запрос обработан",
+	}
+	json.NewEncoder(res).Encode(response)
+
 }
 
+// Добавлении метрик в формате json
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
+	if req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	metrics, ok, err := h.Storage.ValueMetrics(req.Body)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if ok != true {
+	if !ok {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	fmt.Fprintf(res, "%s", metrics)
+	res.Write(metrics)
 }
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
