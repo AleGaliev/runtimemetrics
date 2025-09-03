@@ -172,7 +172,6 @@ func (h MyHandler) GzipMiddlewareHandler(next http.Handler) http.Handler {
 			return
 		}
 		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-			fmt.Println(req.Header.Get("Content-Encoding"))
 			dgz, err := gzip.NewReader(req.Body)
 			if err != nil {
 				res.WriteHeader(http.StatusBadRequest)

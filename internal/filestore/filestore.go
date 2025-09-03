@@ -6,44 +6,6 @@ import (
 	"os"
 )
 
-type Producer struct {
-	file *os.File // файл для записи
-}
-
-type Consumer struct {
-	file *os.File
-	// заменяем Reader на Scanner
-	scanner *bufio.Scanner
-}
-
-func NewProducer(filename string) (*Producer, error) {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Producer{
-		file: file,
-	}, nil
-}
-
-func NewConsumer(filename string) (*Consumer, error) {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Consumer{
-		file:    file,
-		scanner: bufio.NewScanner(file),
-	}, nil
-}
-
-func (p *Producer) Close() error {
-	// закрываем файл
-	return p.file.Close()
-}
-
 func WriteMetrics(filename string, data []byte) error {
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -83,9 +45,4 @@ func ReadMetrics(filename string) ([]byte, error) {
 	file.Close()
 
 	return data, nil
-}
-
-func (c *Consumer) Close() error {
-	// закрываем файл
-	return c.file.Close()
 }

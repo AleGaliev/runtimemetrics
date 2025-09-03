@@ -16,12 +16,18 @@ type Storage struct {
 	filePath      string
 }
 
-func CreateStorage(filePath string, StoreInterval int) *Storage {
-	return &Storage{
+func CreateStorage(filePath string, StoreInterval int, restore bool) (*Storage, error) {
+	storage := &Storage{
 		Metrics:       make(map[string]models.Metrics),
-		filePath:      filePath,
 		StoreInterval: StoreInterval,
+		filePath:      filePath,
 	}
+	if restore {
+		if err := storage.ReadMetricInFile(); err != nil {
+			return nil, err
+		}
+	}
+	return storage, nil
 }
 
 func (s *Storage) AddMetric(myType, name, value string) error {
@@ -174,20 +180,21 @@ func (s *Storage) SaveMetricToFile() error {
 
 func (s *Storage) ReadMetricInFile() error {
 	dataBytes, err := filestore.ReadMetrics(s.filePath)
-	if err.Error() == "file is empty" {
-		fmt.Println("file is empty")
-		return nil
-	} else if err != nil {
-		fmt.Println("could not read metrics")
+
+	if err != nil {
+		if err.Error() == "file is empty" {
+			return nil
+		}
 		return fmt.Errorf("could not read metrics: %v", err)
 	}
+
 	var metricsSlice []models.Metrics
 	err = json.Unmarshal(dataBytes, &metricsSlice)
 	if err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
 	for _, metric := range metricsSlice {
-		fmt.Println(metric)
+		s.Metrics[metric.ID] = metric
 	}
 	if err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
