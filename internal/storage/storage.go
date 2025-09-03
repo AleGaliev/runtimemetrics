@@ -6,16 +6,21 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 )
 
 type Storage struct {
-	Metrics map[string]models.Metrics
+	Metrics       map[string]models.Metrics
+	StoreInterval int
+	filePath      string
 }
 
-func CreateStorage() *Storage {
+func CreateStorage(filePath string, StoreInterval int) *Storage {
 	return &Storage{
-		Metrics: make(map[string]models.Metrics),
+		Metrics:       make(map[string]models.Metrics),
+		filePath:      filePath,
+		StoreInterval: StoreInterval,
 	}
 }
 
@@ -47,6 +52,11 @@ func (s *Storage) AddMetric(myType, name, value string) error {
 		}
 	default:
 		return fmt.Errorf("unknown metric type: %s", myType)
+	}
+	if s.StoreInterval == 0 {
+		if err := s.SaveMetricToFile(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -108,7 +118,11 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 	default:
 		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
 	}
-
+	if s.StoreInterval == 0 {
+		if err := s.SaveMetricToFile(); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -137,4 +151,46 @@ func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 		return nil, false, fmt.Errorf("could not encode metrics: %v", err)
 	}
 	return resp, true, nil
+}
+
+func (s *Storage) SaveMetricToFile() error {
+
+	var metricsSlice []models.Metrics
+
+	for _, metric := range s.Metrics {
+		metricsSlice = append(metricsSlice, metric)
+	}
+
+	data, err := json.Marshal(metricsSlice)
+	if err != nil {
+		return fmt.Errorf("could not encode metrics: %v", err)
+	}
+	if err = filestore.WriteMetrics(s.filePath, data); err != nil {
+		return fmt.Errorf("could not write metrics: %v", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) ReadMetricInFile() error {
+	dataBytes, err := filestore.ReadMetrics(s.filePath)
+	if err.Error() == "file is empty" {
+		fmt.Println("file is empty")
+		return nil
+	} else if err != nil {
+		fmt.Println("could not read metrics")
+		return fmt.Errorf("could not read metrics: %v", err)
+	}
+	var metricsSlice []models.Metrics
+	err = json.Unmarshal(dataBytes, &metricsSlice)
+	if err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	for _, metric := range metricsSlice {
+		fmt.Println(metric)
+	}
+	if err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	return nil
 }

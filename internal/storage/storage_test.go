@@ -124,7 +124,9 @@ func TestStorage_AddMetric(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Storage{
-				Metrics: tt.parent.Metrics,
+				Metrics:       tt.parent.Metrics,
+				StoreInterval: 5,
+				filePath:      "test.json",
 			}
 			if err := s.AddMetric(tt.args.myType, tt.args.name, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("AddMetric() error = %v, wantErr %v", err, tt.wantErr)

@@ -73,7 +73,7 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	memStotage := storage.CreateStorage()
+	memStotage := storage.CreateStorage("metric.json", 10)
 	logServer, err := serverlogger.CreateLogger()
 	if err != nil {
 		panic(err)
@@ -149,7 +149,7 @@ func TestMyHandler_GetValue(t *testing.T) {
 		},
 		// TODO: Add test cases.
 	}
-	memStotage := storage.CreateStorage()
+	memStotage := storage.CreateStorage("metric.json", 10)
 	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
@@ -216,7 +216,7 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 			status:  200,
 		},
 	}
-	memStotage := storage.CreateStorage()
+	memStotage := storage.CreateStorage("metric.json", 10)
 	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
