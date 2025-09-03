@@ -14,7 +14,7 @@ func WriteMetrics(filename string, data []byte) error {
 
 	_, err = file.Write(data)
 	if err != nil {
-		fmt.Errorf("could not write metrics to file: %w", err)
+		return fmt.Errorf("could not write metrics to file: %w", err)
 	}
 	file.Close()
 

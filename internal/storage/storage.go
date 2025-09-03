@@ -196,8 +196,5 @@ func (s *Storage) ReadMetricInFile() error {
 	for _, metric := range metricsSlice {
 		s.Metrics[metric.ID] = metric
 	}
-	if err != nil {
-		return fmt.Errorf("could not decode metrics: %v", err)
-	}
 	return nil
 }
