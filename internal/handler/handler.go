@@ -22,6 +22,10 @@ func (w gzipWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
+type db interface {
+	PingPostgres() error
+}
+
 type logger interface {
 	CreateRequestLog(url, method string, timestamp time.Time)
 }
@@ -36,12 +40,14 @@ type Storage interface {
 type MyHandler struct {
 	Storage Storage
 	logger  logger
+	db      db
 }
 
-func CreateMyHandler(storage Storage, logger logger) http.Handler {
+func CreateMyHandler(storage Storage, logger logger, db db) http.Handler {
 	h := &MyHandler{
 		Storage: storage,
 		logger:  logger,
+		db:      db,
 	}
 
 	mux := chi.NewRouter()
@@ -57,10 +63,25 @@ func CreateMyHandler(storage Storage, logger logger) http.Handler {
 	})
 
 	mux.Get("/", h.ListMetrics)
+	mux.Get("/ping", h.GetPing)
 	muxGzip := h.GzipMiddlewareHandler(mux)
 	muxMiddlewareLogger := h.MiddlewareHandlerLogger(muxGzip)
 
 	return muxMiddlewareLogger
+}
+
+func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
+	if err := h.db.PingPostgres(); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Postgres ping succeeded",
+	}
+	json.NewEncoder(res).Encode(response)
 }
 
 // получение метрики в формате json

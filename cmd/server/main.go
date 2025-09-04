@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/AleGaliev/kubercontroller/internal/config/db"
 	"github.com/AleGaliev/kubercontroller/internal/handler"
 	"github.com/AleGaliev/kubercontroller/internal/logger"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
@@ -25,6 +26,7 @@ func createServerConfig() (serverConfig, error) {
 	storeInterval := flag.Int("i", 2, "interval save metrics in storage")
 	fileStoragePath := flag.String("f", "storage.json", "filepath save metric storage")
 	restore := flag.Bool("r", true, "read file storage metrics")
+	//	databaseDSN := flag.String("d", "localhost", "filepath save metric storage")
 	flag.Parse()
 
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
@@ -51,6 +53,7 @@ func createServerConfig() (serverConfig, error) {
 		}
 		restore = &boolVarRestore
 	}
+
 	return serverConfig{
 		adrHost:         *adrHost,
 		storeInterval:   *storeInterval,
@@ -86,7 +89,8 @@ func main() {
 		}()
 	}
 	logServer.StartServerLog(serverConf.adrHost)
-	r := handler.CreateMyHandler(memStotage, logServer)
+	dbConfig := db.NewDatabasePostgresConfig()
+	r := handler.CreateMyHandler(memStotage, logServer, dbConfig)
 
 	err = http.ListenAndServe(serverConf.adrHost, r)
 	if err != nil {
