@@ -53,11 +53,13 @@ func CreateMyHandler(storage Storage, logger middleware.Logger, db db) http.Hand
 
 	mux.Get("/", h.ListMetrics)
 	mux.Get("/ping", h.GetPing)
+
 	muxGzip := middleware.GzipMiddlewareHandler(mux)
 	muxMiddlewareLogger := middleware.MiddlewareHandlerLogger(muxGzip, logger)
 
 	return muxMiddlewareLogger
 }
+
 
 func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 	if err := h.db.PingPostgres(); err != nil {
@@ -73,7 +75,7 @@ func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(res).Encode(response)
 }
 
-// получение метрики в формате json
+// ServeHTTPUpdate добавление метрики в формате json
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
