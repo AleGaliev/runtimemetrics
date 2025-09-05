@@ -6,8 +6,16 @@ import (
 	"os"
 )
 
-func WriteMetrics(filename string, data []byte) error {
-	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+type FileStore struct {
+	filePath string
+}
+
+func NewFileStore(filePath string) *FileStore {
+	return &FileStore{filePath: filePath}
+}
+
+func (f *FileStore) WriteMetrics(data []byte) error {
+	file, err := os.OpenFile(f.filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		return fmt.Errorf("could not open metrics file: %w", err)
 	}
@@ -21,13 +29,13 @@ func WriteMetrics(filename string, data []byte) error {
 	return nil
 }
 
-func ReadMetrics(filename string) ([]byte, error) {
-	file, err := os.OpenFile(filename, os.O_RDONLY|os.O_CREATE, 0666)
+func (f *FileStore) ReadMetrics() ([]byte, error) {
+	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("could not open metrics file: %w", err)
 	}
 
-	info, err := os.Stat(filename)
+	info, err := os.Stat(f.filePath)
 	if err != nil {
 		return nil, fmt.Errorf("could not read metrics file: %w", err)
 	}

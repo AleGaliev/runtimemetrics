@@ -35,7 +35,8 @@ func TestWriteMetrics(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := WriteMetrics(tt.args.filename, tt.args.data); (err != nil) != tt.wantErr {
+			f := NewFileStore(tt.args.filename)
+			if err := f.WriteMetrics(tt.args.data); (err != nil) != tt.wantErr {
 				t.Errorf("WriteMetrics() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			_ = os.Remove(tt.args.filename)
@@ -70,13 +71,15 @@ func TestReadMetrics(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	if err := WriteMetrics("read_metrics.json", []byte("Hello, World!")); err != nil {
+	f := NewFileStore("read_metrics.json")
+	if err := f.WriteMetrics([]byte("Hello, World!")); err != nil {
 		t.Fatalf("could not open metrics file: %v", err)
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ReadMetrics(tt.args.filename)
+			f := NewFileStore(tt.args.filename)
+			got, err := f.ReadMetrics()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ReadMetrics() error = %v, wantErr %v", err, tt.wantErr)
 				return

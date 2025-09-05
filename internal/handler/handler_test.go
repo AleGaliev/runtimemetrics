@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	serverlogger "github.com/AleGaliev/kubercontroller/internal/logger"
+	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -73,17 +73,17 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	memStotage, err := storage.CreateStorage("metric.json", 10, false)
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
 	if err != nil {
 		panic(err)
 	}
-	logServer, err := serverlogger.CreateLogger()
+	//logServer, err := serverlogger.CreateLogger()
 	if err != nil {
 		panic(err)
 	}
 	h := &MyHandler{
 		Storage: memStotage,
-		logger:  logServer,
 	}
 	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
 	srv := httptest.NewServer(r)
@@ -152,7 +152,8 @@ func TestMyHandler_GetValue(t *testing.T) {
 		},
 		// TODO: Add test cases.
 	}
-	memStotage, err := storage.CreateStorage("metric.json", 10, false)
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
 	if err != nil {
 		panic(err)
 	}
@@ -180,13 +181,12 @@ func TestMyHandler_GetValue(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
-	logServer, err := serverlogger.CreateLogger()
+
 	if err != nil {
 		panic(err)
 	}
 	h := &MyHandler{
 		Storage: memStotage,
-		logger:  logServer,
 	}
 	r.Get("/value/{type}/{name}", h.GetValue)
 	srv := httptest.NewServer(r)
@@ -222,7 +222,8 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 			status:  200,
 		},
 	}
-	memStotage, err := storage.CreateStorage("metric.json", 10, false)
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
 	if err != nil {
 		panic(err)
 	}
@@ -249,13 +250,12 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	logServer, err := serverlogger.CreateLogger()
+
 	if err != nil {
 		panic(err)
 	}
 	h := &MyHandler{
 		Storage: memStotage,
-		logger:  logServer,
 	}
 	r.Get("/", h.ListMetrics)
 	srv := httptest.NewServer(r)

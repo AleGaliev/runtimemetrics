@@ -6,21 +6,25 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 )
+
+type fileStore interface {
+	WriteMetrics(data []byte) error
+	ReadMetrics() ([]byte, error)
+}
 
 type Storage struct {
 	Metrics       map[string]models.Metrics
 	StoreInterval int
-	filePath      string
+	FileStorage   fileStore
 }
 
-func CreateStorage(filePath string, StoreInterval int, restore bool) (*Storage, error) {
+func CreateStorage(fileStore fileStore, StoreInterval int, restore bool) (*Storage, error) {
 	storage := &Storage{
 		Metrics:       make(map[string]models.Metrics),
 		StoreInterval: StoreInterval,
-		filePath:      filePath,
+		FileStorage:   fileStore,
 	}
 	if restore {
 		if err := storage.ReadMetricInFile(); err != nil {
@@ -171,7 +175,7 @@ func (s *Storage) SaveMetricToFile() error {
 	if err != nil {
 		return fmt.Errorf("could not encode metrics: %v", err)
 	}
-	if err = filestore.WriteMetrics(s.filePath, data); err != nil {
+	if err := s.FileStorage.WriteMetrics(data); err != nil {
 		return fmt.Errorf("could not write metrics: %v", err)
 	}
 
@@ -179,7 +183,7 @@ func (s *Storage) SaveMetricToFile() error {
 }
 
 func (s *Storage) ReadMetricInFile() error {
-	dataBytes, err := filestore.ReadMetrics(s.filePath)
+	dataBytes, err := s.FileStorage.ReadMetrics()
 
 	if err != nil {
 		if err.Error() == "file is empty" {
