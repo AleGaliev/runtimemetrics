@@ -78,10 +78,6 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-	//logServer, err := serverlogger.CreateLogger()
-	if err != nil {
-		panic(err)
-	}
 	h := &MyHandler{
 		Storage: memStotage,
 	}
@@ -182,9 +178,6 @@ func TestMyHandler_GetValue(t *testing.T) {
 
 	r := chi.NewRouter()
 
-	if err != nil {
-		panic(err)
-	}
 	h := &MyHandler{
 		Storage: memStotage,
 	}
@@ -251,9 +244,6 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 	}
 	r := chi.NewRouter()
 
-	if err != nil {
-		panic(err)
-	}
 	h := &MyHandler{
 		Storage: memStotage,
 	}
