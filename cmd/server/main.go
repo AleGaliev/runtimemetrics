@@ -40,7 +40,7 @@ func main() {
 		}()
 	}
 	logServer.StartServerLog(serverConf.AdrHost)
-	dbConfig := db.NewDatabasePostgresConfig()
+	dbConfig := db.NewDatabasePostgresConfig(serverConf.DatabaseDSN)
 
 	r := handler.CreateMyHandler(memStorage, logServer, dbConfig)
 
