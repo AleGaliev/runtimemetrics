@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -72,7 +73,11 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
-	memStotage := storage.CreateStorage()
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
+	if err != nil {
+		panic(err)
+	}
 	h := &MyHandler{
 		Storage: memStotage,
 	}
@@ -143,7 +148,11 @@ func TestMyHandler_GetValue(t *testing.T) {
 		},
 		// TODO: Add test cases.
 	}
-	memStotage := storage.CreateStorage()
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
+	if err != nil {
+		panic(err)
+	}
 	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
@@ -168,6 +177,7 @@ func TestMyHandler_GetValue(t *testing.T) {
 	}
 
 	r := chi.NewRouter()
+
 	h := &MyHandler{
 		Storage: memStotage,
 	}
@@ -205,7 +215,11 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 			status:  200,
 		},
 	}
-	memStotage := storage.CreateStorage()
+	fileStore := filestore.NewFileStore("metric.json")
+	memStotage, err := storage.CreateStorage(fileStore, 10, false)
+	if err != nil {
+		panic(err)
+	}
 	memStotage.Metrics = map[string]models.Metrics{
 		"Alloc": {
 			ID:    "Alloc",
@@ -229,6 +243,7 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 		},
 	}
 	r := chi.NewRouter()
+
 	h := &MyHandler{
 		Storage: memStotage,
 	}

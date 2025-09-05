@@ -3,6 +3,7 @@ package storage
 import (
 	"testing"
 
+	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	models "github.com/AleGaliev/kubercontroller/internal/model"
 	"github.com/stretchr/testify/assert"
 )
@@ -121,10 +122,13 @@ func TestStorage_AddMetric(t *testing.T) {
 			},
 		},
 	}
+	f := filestore.NewFileStore("storage_test.json")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Storage{
-				Metrics: tt.parent.Metrics,
+				Metrics:       tt.parent.Metrics,
+				StoreInterval: 5,
+				FileStorage:   f,
 			}
 			if err := s.AddMetric(tt.args.myType, tt.args.name, tt.args.value); (err != nil) != tt.wantErr {
 				t.Errorf("AddMetric() error = %v, wantErr %v", err, tt.wantErr)
