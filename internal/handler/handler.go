@@ -6,10 +6,19 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/AleGaliev/kubercontroller/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
+
+type db interface {
+	PingPostgres() error
+}
+
+type logger interface {
+	CreateRequestLog(url, method string, timestamp time.Time)
+}
 
 type Storage interface {
 	AddMetric(myType, name, value string) error
@@ -20,11 +29,14 @@ type Storage interface {
 }
 type MyHandler struct {
 	Storage Storage
+	logger  logger
+	db      db
 }
 
-func CreateMyHandler(storage Storage, logger middleware.Logger) http.Handler {
+func CreateMyHandler(storage Storage, logger middleware.Logger, db db) http.Handler {
 	h := &MyHandler{
 		Storage: storage,
+		db:      db,
 	}
 
 	mux := chi.NewRouter()
@@ -40,11 +52,27 @@ func CreateMyHandler(storage Storage, logger middleware.Logger) http.Handler {
 	})
 
 	mux.Get("/", h.ListMetrics)
+	mux.Get("/ping", h.GetPing)
 
 	muxGzip := middleware.GzipMiddlewareHandler(mux)
 	muxMiddlewareLogger := middleware.MiddlewareHandlerLogger(muxGzip, logger)
 
 	return muxMiddlewareLogger
+}
+
+
+func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
+	if err := h.db.PingPostgres(); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Postgres ping succeeded",
+	}
+	json.NewEncoder(res).Encode(response)
 }
 
 // ServeHTTPUpdate добавление метрики в формате json

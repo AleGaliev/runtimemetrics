@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/AleGaliev/kubercontroller/internal/config/db"
 	"github.com/AleGaliev/kubercontroller/internal/config/server"
 	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	"github.com/AleGaliev/kubercontroller/internal/handler"
@@ -39,7 +40,9 @@ func main() {
 		}()
 	}
 	logServer.StartServerLog(serverConf.AdrHost)
-	r := handler.CreateMyHandler(memStorage, logServer)
+	dbConfig := db.NewDatabasePostgresConfig(serverConf.DatabaseDSN)
+
+	r := handler.CreateMyHandler(memStorage, logServer, dbConfig)
 
 	err = http.ListenAndServe(serverConf.AdrHost, r)
 	if err != nil {
