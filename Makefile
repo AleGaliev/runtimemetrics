@@ -55,6 +55,6 @@ clean:
 
 rebuild: clean build
 
-test: build test_iter1 test_iter2 test_iter3 test_iter4 test_iter5 test_iter6 test_iter7 test_iter8 test_iter9
+test: build test_iter1 test_iter2 test_iter3 test_iter4 test_iter5 test_iter6 test_iter7 test_iter8 test_iter9 test_iter10
 
 test-clean: test clean

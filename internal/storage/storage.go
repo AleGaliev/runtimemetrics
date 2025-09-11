@@ -85,7 +85,7 @@ func (s *Storage) GetMetrics(name string) (string, bool) {
 	return "", false
 }
 
-func (s *Storage) GetAllMetric() string {
+func (s *Storage) GetAllMetric() (string, error) {
 	result := ""
 	for _, m := range s.Metrics {
 		switch m.MType {
@@ -96,7 +96,7 @@ func (s *Storage) GetAllMetric() string {
 
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Storage) UpdateMetrics(r io.Reader) error {
@@ -200,5 +200,9 @@ func (s *Storage) ReadMetricInFile() error {
 	for _, metric := range metricsSlice {
 		s.Metrics[metric.ID] = metric
 	}
+	return nil
+}
+
+func (s *Storage) Connect() error {
 	return nil
 }
