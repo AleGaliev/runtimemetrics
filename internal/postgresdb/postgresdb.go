@@ -184,11 +184,14 @@ func (p *PostgresDB) UpdateMetrics(r io.Reader) error {
 		var metricsOld models.Metrics
 		err := p.db.QueryRow(queryGet, metricsData.ID, metricsData.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
 
-		if !errors.Is(err, sql.ErrNoRows) && err != nil {
-			return err
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("could not check existing metrics: %w", err)
 		}
 
-		*metricsData.Delta += *metricsOld.Delta
+		if !errors.Is(err, sql.ErrNoRows) {
+			*metricsData.Delta += *metricsOld.Delta
+
+		}
 
 	default:
 		return fmt.Errorf("unknown metric type: %s", metricsData.MType)

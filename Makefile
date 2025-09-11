@@ -43,18 +43,22 @@ test_iter8:
 	metricstest -test.v -test.run=^TestIteration8$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -server-port=3333 -source-path=.
 
 test_iter9:
-	@echo "🧪 Running tests iter8"
+	@echo "🧪 Running tests iter9"
 	metricstest -test.v -test.run=^TestIteration9$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -file-storage-path=service.json -server-port=3333 -source-path=.
 
 test_iter10:
-	@echo "🧪 Running tests iter8"
+	@echo "🧪 Running tests iter10"
 	metricstest -test.v -test.run=^TestIteration10[AB]$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -database-dsn='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' -server-port=3333 -source-path=.
+
+test_iter11:
+	@echo "🧪 Running tests iter11"
+	metricstest -test.v -test.run=^TestIteration11$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -database-dsn='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' -server-port=3333 -source-path=.
 
 clean:
 	rm -rf cmd/agent/agent cmd/server/server
 
 rebuild: clean build
 
-test: build test_iter1 test_iter2 test_iter3 test_iter4 test_iter5 test_iter6 test_iter7 test_iter8 test_iter9 test_iter10
+test: build test_iter1 test_iter2 test_iter3 test_iter4 test_iter5 test_iter6 test_iter7 test_iter8 test_iter9 test_iter10 test_iter11
 
 test-clean: test clean
