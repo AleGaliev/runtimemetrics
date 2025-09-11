@@ -70,7 +70,7 @@ func (p *PostgresDB) Migrate() error {
 		"file://migrations",
 		"postgres", driver)
 	if err != nil {
-		fmt.Errorf("failed to create migration instance: %w", err)
+		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
@@ -154,6 +154,11 @@ func (p *PostgresDB) GetAllMetric() (string, error) {
 			result += fmt.Sprintf("<li> %s: %d</li>", metric.ID, *metric.Delta)
 		}
 	}
+
+	if err = rows.Err(); err != nil {
+		return "", fmt.Errorf("error during rows iteration: %w", err)
+	}
+
 	return result, nil
 }
 func (p *PostgresDB) UpdateMetrics(r io.Reader) error {
