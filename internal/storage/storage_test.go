@@ -170,7 +170,7 @@ func TestStorage_GetAllMetric(t *testing.T) {
 			s := &Storage{
 				Metrics: metrics,
 			}
-			if got := s.GetAllMetric(); got != tt.want {
+			if got, _ := s.GetAllMetric(); got != tt.want {
 				t.Errorf("GetAllMetric() = %v, want %v", got, tt.want)
 			}
 		})
