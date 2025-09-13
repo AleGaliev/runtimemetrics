@@ -53,7 +53,7 @@ func main() {
 			panic(err)
 		}
 
-		if err = dbConfig.Migrate(); err != nil {
+		if err = dbConfig.CreateMigration(); err != nil {
 			fmt.Println("failed to migrate database")
 			fmt.Println(serverConf.DatabaseDSN)
 		}

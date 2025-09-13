@@ -16,6 +16,21 @@ import (
 )
 
 const (
+	queryMigration = `
+		CREATE TABLE IF NOT EXISTS metrics (
+		id VARCHAR(255) NOT NULL,
+		mtype VARCHAR(50) NOT NULL,
+		delta BIGINT,
+		value DOUBLE PRECISION,
+		hash VARCHAR(255),
+		created_at TIMESTAMPTZ DEFAULT NOW(),
+		updated_at TIMESTAMPTZ DEFAULT NOW(),
+		PRIMARY KEY (id, mtype)
+		);
+	
+		CREATE INDEX IF NOT EXISTS idx_metrics_id ON metrics(id);
+		CREATE INDEX IF NOT EXISTS idx_metrics_type ON metrics(mtype);
+	`
 	queryUpgrad = `
 		INSERT INTO metrics (id, mtype, delta, value, hash, updated_at)
         VALUES ($1, $2, $3, $4, $5, NOW())
@@ -232,4 +247,9 @@ func (p *PostgresDB) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 	}
 	return resp, true, nil
 
+}
+
+func (p *PostgresDB) CreateMigration() error {
+	_, err := p.db.Exec(queryMigration)
+	return err
 }
