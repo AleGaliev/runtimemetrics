@@ -55,6 +55,7 @@ func main() {
 
 		if err = dbConfig.Migrate(); err != nil {
 			fmt.Println("failed to migrate database")
+			fmt.Println(serverConf.DatabaseDSN)
 		}
 		r = handler.CreateMyHandler(dbConfig, logServer)
 		defer dbConfig.Close()
