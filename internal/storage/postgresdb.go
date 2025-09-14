@@ -1,4 +1,4 @@
-package postgresdb
+package storage
 
 import (
 	"database/sql"
@@ -57,12 +57,8 @@ type PostgresDB struct {
 	db *sql.DB
 }
 
-func NewPostgresDB(PostgresURL string) (*PostgresDB, error) {
-	db, err := sql.Open("pgx", PostgresURL)
-	if err != nil {
-		return nil, err
-	}
-	return &PostgresDB{db: db}, nil
+func NewPostgresDBStorage(db *sql.DB) *PostgresDB {
+	return &PostgresDB{db: db}
 }
 
 func (p *PostgresDB) Connect() error {
@@ -177,6 +173,7 @@ func (p *PostgresDB) GetAllMetric() (string, error) {
 	return result, nil
 }
 func (p *PostgresDB) UpdateMetrics(r io.Reader) error {
+
 	data := json.NewDecoder(r)
 	var metricsData models.Metrics
 	if err := data.Decode(&metricsData); err != nil {
@@ -225,7 +222,28 @@ func (p *PostgresDB) BatchUpdateMetrics(r io.Reader) error {
 	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
+	metrics := make(map[string]models.Metrics)
+	for _, m := range metricsData {
+		switch m.MType {
 
+		case models.Gauge:
+			if m.Value == nil {
+				return fmt.Errorf("metrics value is nil")
+			}
+			metrics[m.ID] = m
+
+		case models.Counter:
+
+			if m.Delta == nil {
+				return fmt.Errorf("metrics delta is nil")
+			}
+			if metricCounter, exists := metrics[m.ID]; exists {
+				*metricCounter.Delta += *m.Delta
+			} else {
+				metrics[m.ID] = m
+			}
+		}
+	}
 	tx, err := p.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not start a transaction: %w", err)
@@ -237,37 +255,9 @@ func (p *PostgresDB) BatchUpdateMetrics(r io.Reader) error {
 	}
 	defer stmt.Close()
 
-	for _, m := range metricsData {
-		switch m.MType {
-
-		case models.Gauge:
-			if m.Value == nil {
-				return fmt.Errorf("metrics value is nil")
-			}
-
-		case models.Counter:
-
-			if m.Delta == nil {
-				return fmt.Errorf("metrics delta is nil")
-			}
-
-			var metricsOld models.Metrics
-			err := p.db.QueryRow(queryGet, m.ID, m.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
-
-			if err != nil && !errors.Is(err, sql.ErrNoRows) {
-				return fmt.Errorf("could not check existing metrics: %w", err)
-			}
-
-			if !errors.Is(err, sql.ErrNoRows) {
-				*m.Delta += *metricsOld.Delta
-
-			}
-
-		default:
-			return fmt.Errorf("unknown metric type: %s", m.MType)
-		}
-
+	for _, m := range metrics {
 		_, err := stmt.Exec(m.ID, m.MType, m.Delta, m.Value, m.Hash)
+
 		if err != nil {
 			return fmt.Errorf("exec statement for %s: %w", m.ID, err)
 		}

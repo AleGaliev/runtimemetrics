@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/AleGaliev/kubercontroller/internal/config/db"
 	"github.com/AleGaliev/kubercontroller/internal/config/server"
 	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	"github.com/AleGaliev/kubercontroller/internal/handler"
 	"github.com/AleGaliev/kubercontroller/internal/logger"
-	"github.com/AleGaliev/kubercontroller/internal/postgresdb"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
 )
 
@@ -48,17 +48,17 @@ func main() {
 		defer memStorage.SaveMetricToFile()
 
 	} else {
-		dbConfig, err := postgresdb.NewPostgresDB(serverConf.DatabaseDSN)
+		dbConfig, err := db.NewPostgresDB(serverConf.DatabaseDSN)
 		if err != nil {
 			panic(err)
 		}
+		dbMemStorage := storage.NewPostgresDBStorage(dbConfig)
 
-		if err = dbConfig.CreateMigration(); err != nil {
-			fmt.Println("failed to migrate database")
-			fmt.Println(serverConf.DatabaseDSN)
+		if err = dbMemStorage.CreateMigration(); err != nil {
+			panic(err)
 		}
-		r = handler.CreateMyHandler(dbConfig, logServer)
-		defer dbConfig.Close()
+		r = handler.CreateMyHandler(dbMemStorage, logServer)
+		defer dbMemStorage.Close()
 
 	}
 	logServer.StartServerLog(serverConf.AdrHost)
