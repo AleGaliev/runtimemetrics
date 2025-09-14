@@ -136,6 +136,44 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 	return nil
 }
 
+func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
+	data := json.NewDecoder(r)
+	var metricsData []models.Metrics
+	if err := data.Decode(&metricsData); err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	for _, m := range metricsData {
+		switch m.MType {
+
+		case models.Gauge:
+			if m.Value == nil {
+				return fmt.Errorf("metrics value is nil")
+			}
+			s.Metrics[m.ID] = m
+
+		case models.Counter:
+
+			if m.Delta == nil {
+				return fmt.Errorf("metrics delta is nil")
+			}
+
+			if metric, exists := s.Metrics[m.ID]; exists {
+				*metric.Delta += *m.Delta
+			} else {
+				s.Metrics[m.ID] = m
+			}
+		default:
+			return fmt.Errorf("unknown metric type: %s", m.MType)
+		}
+		if s.StoreInterval == 0 {
+			if err := s.SaveMetricToFile(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 	data := json.NewDecoder(r)
 	var metrics models.Metrics

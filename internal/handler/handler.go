@@ -21,6 +21,7 @@ type Storage interface {
 	GetMetrics(name string) (string, bool)
 	GetAllMetric() (string, error)
 	UpdateMetrics(r io.Reader) error
+	BatchUpdateMetrics(r io.Reader) error
 	ValueMetrics(r io.Reader) ([]byte, bool, error)
 	Connect() error
 }
@@ -44,6 +45,10 @@ func CreateMyHandler(storage Storage, logger middleware.Logger) http.Handler {
 	mux.Route("/value/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPValue)
 		r.Get("/{type}/{name}", h.GetValue)
+	})
+
+	mux.Route("/updates/", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPBatchUpdate)
 	})
 
 	mux.Get("/", h.ListMetrics)
@@ -89,7 +94,19 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(res).Encode(response); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
+}
 
+func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := h.Storage.BatchUpdateMetrics(req.Body); err != nil {
+		fmt.Println(err)
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 }
 
 // ServeHTTPValue получение метрик в формате json
