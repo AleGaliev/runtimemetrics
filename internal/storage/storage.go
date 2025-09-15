@@ -105,29 +105,15 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
-
-	switch metricsData.MType {
-
-	case models.Gauge:
-		if metricsData.Value == nil {
-			return fmt.Errorf("metrics value is nil")
-		}
-		s.Metrics[metricsData.ID] = metricsData
-
-	case models.Counter:
-
-		if metricsData.Delta == nil {
-			return fmt.Errorf("metrics delta is nil")
-		}
-
-		if metric, exists := s.Metrics[metricsData.ID]; exists {
-			*metric.Delta += *metricsData.Delta
-		} else {
-			s.Metrics[metricsData.ID] = metricsData
-		}
-	default:
-		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
+	if err := MetricValidate(metricsData); err != nil {
+		return fmt.Errorf("could not validate metrics: %v", err)
 	}
+	if metricsData.MType == models.Counter {
+		if metric, exists := s.Metrics[metricsData.ID]; exists {
+			*metricsData.Delta += *metric.Delta
+		}
+	}
+	s.Metrics[metricsData.ID] = metricsData
 	if s.StoreInterval == 0 {
 		if err := s.SaveMetricToFile(); err != nil {
 			return err
@@ -143,28 +129,18 @@ func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
 	for _, m := range metricsData {
-		switch m.MType {
+		if err := MetricValidate(m); err != nil {
+			return fmt.Errorf("could not validate metrics: %v", err)
+		}
 
-		case models.Gauge:
-			if m.Value == nil {
-				return fmt.Errorf("metrics value is nil")
-			}
-			s.Metrics[m.ID] = m
-
-		case models.Counter:
-
-			if m.Delta == nil {
-				return fmt.Errorf("metrics delta is nil")
-			}
+		if m.MType == models.Counter {
 
 			if metric, exists := s.Metrics[m.ID]; exists {
-				*metric.Delta += *m.Delta
-			} else {
-				s.Metrics[m.ID] = m
+				*m.Delta += *metric.Delta
 			}
-		default:
-			return fmt.Errorf("unknown metric type: %s", m.MType)
 		}
+		s.Metrics[m.ID] = m
+
 		if s.StoreInterval == 0 {
 			if err := s.SaveMetricToFile(); err != nil {
 				return err

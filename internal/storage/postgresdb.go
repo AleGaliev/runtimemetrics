@@ -46,7 +46,7 @@ const (
 		SELECT id, mtype, delta, value, hash
         FROM metrics 
         WHERE id = $1 AND mtype = $2`
-	queryGetСontent = `
+	queryGetContent = `
 		SELECT id
         FROM metrics 
         WHERE id = $1`
@@ -132,7 +132,7 @@ func (p *PostgresDB) AddMetric(myType, name, value string) error {
 func (p *PostgresDB) GetMetrics(name string) (string, bool) {
 	check := false
 	var content string
-	err := p.db.QueryRow(queryGetСontent, name).Scan(&content)
+	err := p.db.QueryRow(queryGetContent, name).Scan(&content)
 	if errors.Is(err, sql.ErrNoRows) {
 		check = true
 	}
@@ -180,33 +180,11 @@ func (p *PostgresDB) UpdateMetrics(r io.Reader) error {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
 
-	switch metricsData.MType {
-
-	case models.Gauge:
-		if metricsData.Value == nil {
-			return fmt.Errorf("metrics value is nil")
-		}
-
-	case models.Counter:
-
-		if metricsData.Delta == nil {
-			return fmt.Errorf("metrics delta is nil")
-		}
-
-		var metricsOld models.Metrics
-		err := p.db.QueryRow(queryGet, metricsData.ID, metricsData.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
-
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("could not check existing metrics: %w", err)
-		}
-
-		if !errors.Is(err, sql.ErrNoRows) {
-			*metricsData.Delta += *metricsOld.Delta
-
-		}
-
-	default:
-		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
+	if err := MetricValidate(metricsData); err != nil {
+		return fmt.Errorf("could not validate metrics: %v", err)
+	}
+	if err := p.counterManipulation(&metricsData); err != nil {
+		return fmt.Errorf("could not add metric: %w", err)
 	}
 
 	_, err := p.db.Exec(queryUpgrad, metricsData.ID, metricsData.MType, metricsData.Delta, metricsData.Value, metricsData.Hash)
@@ -224,26 +202,19 @@ func (p *PostgresDB) BatchUpdateMetrics(r io.Reader) error {
 	}
 	metrics := make(map[string]models.Metrics)
 	for _, m := range metricsData {
-		switch m.MType {
 
-		case models.Gauge:
-			if m.Value == nil {
-				return fmt.Errorf("metrics value is nil")
-			}
-			metrics[m.ID] = m
+		if err := MetricValidate(m); err != nil {
+			return fmt.Errorf("could not validate metrics: %v", err)
+		}
+		if m.MType == models.Counter {
 
-		case models.Counter:
-
-			if m.Delta == nil {
-				return fmt.Errorf("metrics delta is nil")
-			}
 			if metricCounter, exists := metrics[m.ID]; exists {
-				*metricCounter.Delta += *m.Delta
-			} else {
-				metrics[m.ID] = m
+				*m.Delta += *metricCounter.Delta
 			}
 		}
+		metrics[m.ID] = m
 	}
+
 	tx, err := p.db.Begin()
 	if err != nil {
 		return fmt.Errorf("could not start a transaction: %w", err)
@@ -256,6 +227,9 @@ func (p *PostgresDB) BatchUpdateMetrics(r io.Reader) error {
 	defer stmt.Close()
 
 	for _, m := range metrics {
+		if err := p.counterManipulation(&m); err != nil {
+			return fmt.Errorf("could not add metric: %w", err)
+		}
 		_, err := stmt.Exec(m.ID, m.MType, m.Delta, m.Value, m.Hash)
 
 		if err != nil {
@@ -303,4 +277,20 @@ func (p *PostgresDB) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 func (p *PostgresDB) CreateMigration() error {
 	_, err := p.db.Exec(queryMigration)
 	return err
+}
+
+func (p *PostgresDB) counterManipulation(metrics *models.Metrics) error {
+	var metricsOld models.Metrics
+	if metrics.MType == models.Counter {
+		err := p.db.QueryRow(queryGet, metrics.ID, metrics.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
+
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("could not check existing metrics: %w", err)
+		}
+
+		if !errors.Is(err, sql.ErrNoRows) {
+			*metrics.Delta += *metricsOld.Delta
+		}
+	}
+	return nil
 }
