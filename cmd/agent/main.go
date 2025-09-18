@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	arg, err := initСonfig()
+	arg, err := initConfig()
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +44,7 @@ func main() {
 	}
 }
 
-func initСonfig() (flagsAgent, error) {
+func initConfig() (flagsAgent, error) {
 	baseURL := flag.String("a", "localhost:8080", "Endpoint http server")
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
 	if ok {

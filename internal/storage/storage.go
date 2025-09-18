@@ -85,7 +85,7 @@ func (s *Storage) GetMetrics(name string) (string, bool) {
 	return "", false
 }
 
-func (s *Storage) GetAllMetric() string {
+func (s *Storage) GetAllMetric() (string, error) {
 	result := ""
 	for _, m := range s.Metrics {
 		switch m.MType {
@@ -96,7 +96,7 @@ func (s *Storage) GetAllMetric() string {
 
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Storage) UpdateMetrics(r io.Reader) error {
@@ -105,32 +105,46 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
-
-	switch metricsData.MType {
-
-	case models.Gauge:
-		if metricsData.Value == nil {
-			return fmt.Errorf("metrics value is nil")
-		}
-		s.Metrics[metricsData.ID] = metricsData
-
-	case models.Counter:
-
-		if metricsData.Delta == nil {
-			return fmt.Errorf("metrics delta is nil")
-		}
-
-		if metric, exists := s.Metrics[metricsData.ID]; exists {
-			*metric.Delta += *metricsData.Delta
-		} else {
-			s.Metrics[metricsData.ID] = metricsData
-		}
-	default:
-		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
+	if err := MetricValidate(metricsData); err != nil {
+		return fmt.Errorf("could not validate metrics: %v", err)
 	}
+	if metricsData.MType == models.Counter {
+		if metric, exists := s.Metrics[metricsData.ID]; exists {
+			*metricsData.Delta += *metric.Delta
+		}
+	}
+	s.Metrics[metricsData.ID] = metricsData
 	if s.StoreInterval == 0 {
 		if err := s.SaveMetricToFile(); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
+	data := json.NewDecoder(r)
+	var metricsData []models.Metrics
+	if err := data.Decode(&metricsData); err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	for _, m := range metricsData {
+		if err := MetricValidate(m); err != nil {
+			return fmt.Errorf("could not validate metrics: %v", err)
+		}
+
+		if m.MType == models.Counter {
+
+			if metric, exists := s.Metrics[m.ID]; exists {
+				*m.Delta += *metric.Delta
+			}
+		}
+		s.Metrics[m.ID] = m
+
+		if s.StoreInterval == 0 {
+			if err := s.SaveMetricToFile(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -200,5 +214,9 @@ func (s *Storage) ReadMetricInFile() error {
 	for _, metric := range metricsSlice {
 		s.Metrics[metric.ID] = metric
 	}
+	return nil
+}
+
+func (s *Storage) Connect() error {
 	return nil
 }

@@ -6,20 +6,28 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/AleGaliev/kubercontroller/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
 
+type logger interface {
+	CreateRequestLog(url, method string, timestamp time.Time)
+}
+
 type Storage interface {
 	AddMetric(myType, name, value string) error
 	GetMetrics(name string) (string, bool)
-	GetAllMetric() string
+	GetAllMetric() (string, error)
 	UpdateMetrics(r io.Reader) error
+	BatchUpdateMetrics(r io.Reader) error
 	ValueMetrics(r io.Reader) ([]byte, bool, error)
+	Connect() error
 }
 type MyHandler struct {
 	Storage Storage
+	logger  logger
 }
 
 func CreateMyHandler(storage Storage, logger middleware.Logger) http.Handler {
@@ -39,12 +47,31 @@ func CreateMyHandler(storage Storage, logger middleware.Logger) http.Handler {
 		r.Get("/{type}/{name}", h.GetValue)
 	})
 
+	mux.Route("/updates/", func(r chi.Router) {
+		r.Post("/", h.ServeHTTPBatchUpdate)
+	})
+
 	mux.Get("/", h.ListMetrics)
+	mux.Get("/ping", h.GetPing)
 
 	muxGzip := middleware.GzipMiddlewareHandler(mux)
 	muxMiddlewareLogger := middleware.MiddlewareHandlerLogger(muxGzip, logger)
 
 	return muxMiddlewareLogger
+}
+
+func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
+	if err := h.Storage.Connect(); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusOK)
+	response := map[string]interface{}{
+		"status":  "success",
+		"message": "Postgres ping succeeded",
+	}
+	json.NewEncoder(res).Encode(response)
 }
 
 // ServeHTTPUpdate добавление метрики в формате json
@@ -55,6 +82,7 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := h.Storage.UpdateMetrics(req.Body); err != nil {
+		fmt.Println(err)
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -66,7 +94,19 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	if err := json.NewEncoder(res).Encode(response); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
+}
 
+func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "application/json")
+	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := h.Storage.BatchUpdateMetrics(req.Body); err != nil {
+		fmt.Println(err)
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
 }
 
 // ServeHTTPValue получение метрик в формате json
@@ -127,7 +167,10 @@ func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 
 func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
-	body := h.Storage.GetAllMetric()
+	body, err := h.Storage.GetAllMetric()
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
 
 	fmt.Fprint(res, `
     <!DOCTYPE html>
