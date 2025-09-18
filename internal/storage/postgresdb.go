@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/kubercontroller/internal/service/retry"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -54,18 +55,21 @@ const (
 )
 
 type PostgresDB struct {
-	db *sql.DB
+	db    *sql.DB
+	retry retry.Retry
 }
 
-func NewPostgresDBStorage(db *sql.DB) *PostgresDB {
-	return &PostgresDB{db: db}
+func NewPostgresDBStorage(db *sql.DB, retry retry.Retry) *PostgresDB {
+	return &PostgresDB{db: db, retry: retry}
 }
 
 func (p *PostgresDB) Connect() error {
-	if err := p.db.Ping(); err != nil {
-		return fmt.Errorf("could not ping postgres: %w", err)
-	}
-	return nil
+	return p.retry.RetryConnection(func() error {
+		if err := p.db.Ping(); err != nil {
+			return fmt.Errorf("could not ping postgres: %w", err)
+		}
+		return nil
+	})
 }
 
 func (p *PostgresDB) Close() error {

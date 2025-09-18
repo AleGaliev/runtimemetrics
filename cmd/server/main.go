@@ -10,6 +10,7 @@ import (
 	"github.com/AleGaliev/kubercontroller/internal/filestore"
 	"github.com/AleGaliev/kubercontroller/internal/handler"
 	"github.com/AleGaliev/kubercontroller/internal/logger"
+	"github.com/AleGaliev/kubercontroller/internal/service/retry"
 	"github.com/AleGaliev/kubercontroller/internal/storage"
 )
 
@@ -52,7 +53,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		dbMemStorage := storage.NewPostgresDBStorage(dbConfig)
+		dbMemStorage := storage.NewPostgresDBStorage(dbConfig, retry.CreateRetry())
 
 		if err = dbMemStorage.CreateMigration(); err != nil {
 			panic(err)
