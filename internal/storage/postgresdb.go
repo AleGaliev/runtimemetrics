@@ -88,13 +88,11 @@ func (p *PostgresDB) Migrate() error {
 		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
 	return p.retry.RetryConnection(func() error {
-		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			return fmt.Errorf("failed to apply migrations: %w", err)
 		}
 		return nil
 	})
-
-	return nil
 }
 
 func (p *PostgresDB) AddMetric(myType, name, value string) error {
