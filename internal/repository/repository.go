@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 type logger interface {

@@ -1,8 +1,8 @@
 package agent
 
 import (
-	"github.com/AleGaliev/kubercontroller/internal/collector"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/collector"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 type Rep interface {

@@ -3,7 +3,7 @@ package storage
 import (
 	"fmt"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 func MetricValidate(metric models.Metrics) error {

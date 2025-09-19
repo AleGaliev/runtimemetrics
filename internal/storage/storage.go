@@ -6,7 +6,7 @@ import (
 	"io"
 	"strconv"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 type fileStore interface {

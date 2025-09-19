@@ -8,8 +8,8 @@ import (
 	"io"
 	"strconv"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
-	"github.com/AleGaliev/kubercontroller/internal/service/retry"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
@@ -87,10 +87,13 @@ func (p *PostgresDB) Migrate() error {
 	if err != nil {
 		return fmt.Errorf("failed to create migration instance: %w", err)
 	}
+	return p.retry.RetryConnection(func() error {
+		if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+			return fmt.Errorf("failed to apply migrations: %w", err)
+		}
+		return nil
+	})
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		return fmt.Errorf("failed to apply migrations: %w", err)
-	}
 	return nil
 }
 
@@ -112,21 +115,31 @@ func (p *PostgresDB) AddMetric(myType, name, value string) error {
 			return err
 		}
 		var deltaOld int64
-		err = p.db.QueryRow(queryGet, name, metrics.MType).Scan(&deltaOld)
-
-		if errors.Is(err, sql.ErrNoRows) {
-			metrics.Delta = &i
-		} else if err != nil {
+		err = p.retry.RetryConnection(func() error {
+			err = p.db.QueryRow(queryGet, name, metrics.MType).Scan(&deltaOld)
+			if errors.Is(err, sql.ErrNoRows) {
+				metrics.Delta = &i
+			} else if err != nil {
+				return err
+			} else {
+				i += deltaOld
+				metrics.Delta = &i
+			}
+			return nil
+		})
+		if err != nil {
 			return err
-		} else {
-			i += deltaOld
-			metrics.Delta = &i
 		}
+
 	default:
 		return fmt.Errorf("unknown metric type: %s", myType)
 	}
 
-	_, err := p.db.Exec(queryUpgrad, metrics.ID, metrics.MType, metrics.Delta, metrics.Value, metrics.Hash)
+	err := p.retry.RetryConnection(func() error {
+		_, err := p.db.Exec(queryUpgrad, metrics.ID, metrics.MType, metrics.Delta, metrics.Value, metrics.Hash)
+		return err
+	})
+
 	if err != nil {
 		return fmt.Errorf("failed to add metric: %w", err)
 	}

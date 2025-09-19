@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AleGaliev/kubercontroller/internal/middleware"
+	"github.com/AleGaliev/runtimemetrics/internal/middleware"
 	"github.com/go-chi/chi/v5"
 )
 

@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"runtime"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 func float64Ptr(f float64) *float64 {

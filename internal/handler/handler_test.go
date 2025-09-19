@@ -6,9 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/AleGaliev/kubercontroller/internal/filestore"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
-	"github.com/AleGaliev/kubercontroller/internal/storage"
+	"github.com/AleGaliev/runtimemetrics/internal/filestore"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/storage"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"

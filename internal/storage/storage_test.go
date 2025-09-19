@@ -3,8 +3,8 @@ package storage
 import (
 	"testing"
 
-	"github.com/AleGaliev/kubercontroller/internal/filestore"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/filestore"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 

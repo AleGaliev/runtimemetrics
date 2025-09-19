@@ -1,17 +1,18 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
 
-	"github.com/AleGaliev/kubercontroller/internal/config/db"
-	"github.com/AleGaliev/kubercontroller/internal/config/server"
-	"github.com/AleGaliev/kubercontroller/internal/filestore"
-	"github.com/AleGaliev/kubercontroller/internal/handler"
-	"github.com/AleGaliev/kubercontroller/internal/logger"
-	"github.com/AleGaliev/kubercontroller/internal/service/retry"
-	"github.com/AleGaliev/kubercontroller/internal/storage"
+	"github.com/AleGaliev/runtimemetrics/internal/config/db"
+	"github.com/AleGaliev/runtimemetrics/internal/config/server"
+	"github.com/AleGaliev/runtimemetrics/internal/filestore"
+	"github.com/AleGaliev/runtimemetrics/internal/handler"
+	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
+	"github.com/AleGaliev/runtimemetrics/internal/storage"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 
 	logServer, err := logger.CreateLogger()
 	if err != nil {
-		panic(err)
+		panic(errors.Unwrap(err))
 	}
 
 	var r http.Handler
@@ -32,7 +33,7 @@ func main() {
 
 		memStorage, err := storage.CreateStorage(fileStore, serverConf.StoreInterval, serverConf.Restore)
 		if err != nil {
-			panic(err)
+			panic(errors.Unwrap(err))
 		}
 		fmt.Println("mem storage created")
 		if serverConf.StoreInterval > 0 && serverConf.DatabaseDSN == "" {
@@ -40,7 +41,7 @@ func main() {
 				for {
 					time.Sleep(time.Duration(serverConf.StoreInterval) * time.Second)
 					if err := memStorage.SaveMetricToFile(); err != nil {
-						panic(err)
+						panic(errors.Unwrap(err))
 					}
 				}
 			}()
@@ -51,12 +52,12 @@ func main() {
 	} else {
 		dbConfig, err := db.NewPostgresDB(serverConf.DatabaseDSN)
 		if err != nil {
-			panic(err)
+			panic(errors.Unwrap(err))
 		}
 		dbMemStorage := storage.NewPostgresDBStorage(dbConfig, retry.CreateRetry())
 
 		if err = dbMemStorage.CreateMigration(); err != nil {
-			panic(err)
+			panic(errors.Unwrap(err))
 		}
 		r = handler.CreateMyHandler(dbMemStorage, logServer)
 		defer dbMemStorage.Close()
@@ -66,7 +67,7 @@ func main() {
 
 	err = http.ListenAndServe(serverConf.AdrHost, r)
 	if err != nil {
-		panic(err)
+		panic(errors.Unwrap(err))
 	}
 
 }

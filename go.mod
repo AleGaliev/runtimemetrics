@@ -1,4 +1,4 @@
-module github.com/AleGaliev/kubercontroller
+module github.com/AleGaliev/runtimemetrics
 
 go 1.24.5
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -8,9 +9,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/AleGaliev/kubercontroller/internal/agent"
-	"github.com/AleGaliev/kubercontroller/internal/logger"
-	"github.com/AleGaliev/kubercontroller/internal/repository"
+	"github.com/AleGaliev/runtimemetrics/internal/agent"
+	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/internal/repository"
 )
 
 type flagsAgent struct {
@@ -22,23 +23,23 @@ type flagsAgent struct {
 func main() {
 	logServer, err := logger.CreateLogger()
 	if err != nil {
-		panic(err)
+		panic(errors.Unwrap(err))
 	}
 
 	arg, err := initConfig()
 	if err != nil {
-		panic(err)
+		panic(errors.Unwrap(err))
 	}
 	clientCfg := repository.NewClientConfig(logServer, arg.baseURL)
 	agentCfg, err := agent.NewAgentConfig(clientCfg, arg.pollInterval, arg.reportInterval)
 
 	if err != nil {
-		log.Fatalf("error parsing agent config: %v", err)
+		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
 	}
 
 	for {
 		if err := agentCfg.Run(); err != nil {
-			fmt.Println(err)
+			fmt.Println(errors.Unwrap(err))
 		}
 		time.Sleep(1 * time.Second)
 	}
