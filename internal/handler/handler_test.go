@@ -1,262 +1,415 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
-	"github.com/AleGaliev/runtimemetrics/internal/filestore"
-	models "github.com/AleGaliev/runtimemetrics/internal/model"
-	"github.com/AleGaliev/runtimemetrics/internal/storage"
+	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/mocks"
 	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestMyHandler_ServeHTTP(t *testing.T) {
-
-	type want struct {
-		statusCode  int
-		contentType string
-	}
+func TestMyHandler_GetPing(t *testing.T) {
 	tests := []struct {
-		name    string
-		request string
-		metod   string
-		want    want
+		name           string
+		connectError   error
+		expectedStatus int
 	}{
 		{
-			name:    "positive post request",
-			request: "/update/counter/someMetric/527",
-			metod:   http.MethodPost,
-			want: want{
-				statusCode:  200,
-				contentType: "text/plain",
-			},
+			name:           "successful connection",
+			connectError:   nil,
+			expectedStatus: http.StatusOK,
 		},
 		{
-			name:    "positive post gauge request",
-			request: "/update/gauge/someMetric/527",
-			metod:   http.MethodPost,
-			want: want{
-				statusCode:  200,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "positive post gauge request",
-			request: "/update/gauge/someMetric/527",
-			metod:   http.MethodPost,
-			want: want{
-				statusCode:  200,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "negativ get request",
-			request: "/update/counter/someMetric/527",
-			metod:   http.MethodGet,
-			want: want{
-				statusCode:  405,
-				contentType: "text/plain",
-			},
-		},
-		{
-			name:    "negativ not name metrics",
-			request: "/update/counter/527",
-			metod:   http.MethodPost,
-			want: want{
-				statusCode:  404,
-				contentType: "text/plain",
-			},
+			name:           "connection failed",
+			connectError:   fmt.Errorf("connection error"),
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
-	r := chi.NewRouter()
-	fileStore := filestore.NewFileStore("metric.json")
-	memStotage, err := storage.CreateStorage(fileStore, 10, false)
-	if err != nil {
-		panic(err)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockStorage := mocks.NewMockstorage(ctrl)
+			mockConnector := mocks.NewMockconnector(ctrl)
+
+			// Настраиваем ожидания
+			mockConnector.EXPECT().Connect().Return(tt.connectError)
+			logServer, _ := logger.CreateLogger()
+
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
+
+			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
 	}
-	h := &MyHandler{
-		Storage: memStotage,
+}
+
+func TestMyHandler_ServeHTTPUpdate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
+
+	tests := []struct {
+		name           string
+		body           string
+		updateError    error
+		expectedStatus int
+		contentType    string
+		method         string
+	}{
+		{
+			name:           "successful update",
+			body:           `{"id": "test","type": "gauge","value": 1.5}`,
+			updateError:    nil,
+			expectedStatus: http.StatusOK,
+			contentType:    "application/json",
+			method:         http.MethodPost,
+		},
+		{
+			name:           "update error",
+			body:           `{"id":"test","type":"gauge","value":1.5}`,
+			updateError:    fmt.Errorf("update error"),
+			expectedStatus: http.StatusBadRequest,
+			contentType:    "application/json",
+			method:         http.MethodPost,
+		},
+		{
+			name:           "wrong content type",
+			body:           `{"id":"test","type":"gauge","value":1.5}`,
+			updateError:    nil,
+			expectedStatus: http.StatusBadRequest,
+			contentType:    "text/plain",
+			method:         http.MethodPost,
+		},
+		{
+			name:           "wrong method",
+			body:           `{"id":"test","type":"gauge","value":1.5}`,
+			updateError:    nil,
+			expectedStatus: http.StatusMethodNotAllowed,
+			contentType:    "application/json",
+			method:         http.MethodGet,
+		},
 	}
-	r.Post("/update/{type}/{name}/{value}", h.ServeHTTP)
-	srv := httptest.NewServer(r)
 
-	defer srv.Close()
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			req := resty.New().R()
-			req.Method = test.metod
-			req.Header.Set("Content-Type", test.metod)
-			req.URL = srv.URL + test.request
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Устанавливаем ожидание только для успешных случаев и случаев с ошибкой update
+			if tt.expectedStatus == http.StatusOK ||
+				(tt.expectedStatus == http.StatusBadRequest && tt.updateError != nil) {
+				mockStorage.EXPECT().UpdateMetrics(gomock.Any()).Return(tt.updateError)
+			}
 
-			res, err := req.Send()
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
 
-			assert.Equal(t, test.want.statusCode, res.StatusCode())
-			assert.Equal(t, nil, err)
-			assert.Equal(t, test.metod, req.Header.Get("Content-Type"))
+			req := httptest.NewRequest(tt.method, "/update/", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", tt.contentType)
+			w := httptest.NewRecorder()
 
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestMyHandler_ServeHTTPBatchUpdate(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
+
+	tests := []struct {
+		name           string
+		body           string
+		batchError     error
+		expectedStatus int
+	}{
+		{
+			name:           "successful batch update",
+			body:           `[{"id":"test1","type":"gauge","value":1.5},{"id":"test2","type":"counter","delta":1}]`,
+			batchError:     nil,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "batch update error",
+			body:           `[{"id":"test1","type":"gauge","value":1.5}]`,
+			batchError:     fmt.Errorf("batch error"),
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage.EXPECT().BatchUpdateMetrics(gomock.Any()).Return(tt.batchError)
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
+
+			req := httptest.NewRequest(http.MethodPost, "/updates/", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+		})
+	}
+}
+
+func TestMyHandler_ServeHTTPValue(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
+
+	tests := []struct {
+		name           string
+		body           string
+		metrics        []byte
+		found          bool
+		valueError     error
+		expectedStatus int
+	}{
+		{
+			name:           "successful get value",
+			body:           `{"id":"test","type":"gauge"}`,
+			metrics:        []byte(`{"id":"test","type":"gauge","value":1.5}`),
+			found:          true,
+			valueError:     nil,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "value not found",
+			body:           `{"id":"test","type":"gauge"}`,
+			metrics:        nil,
+			found:          false,
+			valueError:     nil,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "value error",
+			body:           `{"id":"test","type":"gauge"}`,
+			metrics:        nil,
+			found:          false,
+			valueError:     fmt.Errorf("value error"),
+			expectedStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage.EXPECT().ValueMetrics(gomock.Any()).Return(tt.metrics, tt.found, tt.valueError)
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
+
+			req := httptest.NewRequest(http.MethodPost, "/value/", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.expectedStatus == http.StatusOK {
+				assert.JSONEq(t, string(tt.metrics), w.Body.String())
+			}
+		})
+	}
+}
+
+func TestMyHandler_ServeHTTP(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
+
+	tests := []struct {
+		name           string
+		url            string
+		addMetricError error
+		expectedStatus int
+	}{
+		{
+			name:           "successful add metric",
+			url:            "/update/gauge/test/1.5",
+			addMetricError: nil,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "add metric error",
+			url:            "/update/gauge/test/1.5",
+			addMetricError: fmt.Errorf("add error"),
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid url",
+			url:            "/update/gauge/test",
+			addMetricError: nil,
+			expectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if strings.Count(tt.url, "/") >= 4 && tt.addMetricError != nil {
+				mockStorage.EXPECT().AddMetric("gauge", "test", "1.5").Return(tt.addMetricError)
+			} else if strings.Count(tt.url, "/") >= 4 {
+				mockStorage.EXPECT().AddMetric("gauge", "test", "1.5").Return(nil)
+			}
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
+
+			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
 
 func TestMyHandler_GetValue(t *testing.T) {
-	var (
-		allocValue          = 123.45
-		buckHashValue       = 67.89
-		freesValue          = 0.12
-		count         int64 = 3
-	)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
-		name    string
-		request string
-		status  int
-		value   string
+		name           string
+		metricName     string
+		metricValue    string
+		found          bool
+		expectedStatus int
 	}{
 		{
-			name:    "positive get allocValue",
-			request: "/value/gauge/Alloc",
-			status:  200,
-			value:   fmt.Sprintf("%g", allocValue),
+			name:           "metric found",
+			metricName:     "test_metric",
+			metricValue:    "42.5",
+			found:          true,
+			expectedStatus: http.StatusOK,
 		},
 		{
-			name:    "positive get buckHashValue",
-			request: "/value/gauge/BuckHash",
-			status:  200,
-			value:   fmt.Sprintf("%g", buckHashValue),
-		},
-		{
-			name:    "positive get freesValue",
-			request: "/value/gauge/Frees",
-			status:  200,
-			value:   fmt.Sprintf("%g", freesValue),
-		},
-		{
-			name:    "positive get counter",
-			request: "/value/counter/Count",
-			status:  200,
-			value:   fmt.Sprintf("%d", count),
-		},
-		{
-			name:    "negativ get allocValue",
-			request: "/value/gauge/allocValue",
-			status:  404,
-			value:   "",
-		},
-		// TODO: Add test cases.
-	}
-	fileStore := filestore.NewFileStore("metric.json")
-	memStotage, err := storage.CreateStorage(fileStore, 10, false)
-	if err != nil {
-		panic(err)
-	}
-	memStotage.Metrics = map[string]models.Metrics{
-		"Alloc": {
-			ID:    "Alloc",
-			MType: models.Gauge,
-			Value: &allocValue,
-		},
-		"BuckHash": {
-			ID:    "BuckHash",
-			MType: models.Gauge,
-			Value: &buckHashValue,
-		},
-		"Frees": {
-			ID:    "Frees",
-			MType: models.Gauge,
-			Value: &freesValue,
-		},
-		"Count": {
-			ID:    "Count",
-			MType: models.Counter,
-			Delta: &count,
+			name:           "metric not found",
+			metricName:     "unknown_metric",
+			metricValue:    "",
+			found:          false,
+			expectedStatus: http.StatusNotFound,
 		},
 	}
 
-	r := chi.NewRouter()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage.EXPECT().GetMetrics(tt.metricName).Return(tt.metricValue, tt.found)
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
 
-	h := &MyHandler{
-		Storage: memStotage,
-	}
-	r.Get("/value/{type}/{name}", h.GetValue)
-	srv := httptest.NewServer(r)
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			req := resty.New().R()
-			req.URL = srv.URL + test.request
+			req := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tt.metricName, nil)
+			w := httptest.NewRecorder()
 
-			res, err := req.Send()
-			assert.Equal(t, test.status, res.StatusCode())
-			assert.Equal(t, nil, err)
+			// Используем chi router context для параметров
+			rctx := chi.NewRouteContext()
+			rctx.URLParams.Add("type", "gauge")
+			rctx.URLParams.Add("name", tt.metricName)
+			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.found {
+				assert.Equal(t, tt.metricValue, w.Body.String())
+			}
 		})
 	}
 }
 
 func TestMyHandler_ListMetrics(t *testing.T) {
-	var (
-		allocValue          = 123.45
-		buckHashValue       = 67.89
-		freesValue          = 0.12
-		count         int64 = 3
-	)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockstorage(ctrl)
+	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
-		name    string
-		request string
-		status  int
+		name           string
+		allMetrics     string
+		getAllError    error
+		expectedStatus int
 	}{
 		{
-			name:    "positive test",
-			request: "/",
-			status:  200,
+			name:           "successful list",
+			allMetrics:     "<li>test_metric: 42.5</li>",
+			getAllError:    nil,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "get all error",
+			allMetrics:     "",
+			getAllError:    fmt.Errorf("get all error"),
+			expectedStatus: http.StatusInternalServerError,
 		},
 	}
-	fileStore := filestore.NewFileStore("metric.json")
-	memStotage, err := storage.CreateStorage(fileStore, 10, false)
-	if err != nil {
-		panic(err)
-	}
-	memStotage.Metrics = map[string]models.Metrics{
-		"Alloc": {
-			ID:    "Alloc",
-			MType: models.Gauge,
-			Value: &allocValue,
-		},
-		"BuckHash": {
-			ID:    "BuckHash",
-			MType: models.Gauge,
-			Value: &buckHashValue,
-		},
-		"Frees": {
-			ID:    "Frees",
-			MType: models.Gauge,
-			Value: &freesValue,
-		},
-		"Count": {
-			ID:    "Count",
-			MType: models.Counter,
-			Delta: &count,
-		},
-	}
-	r := chi.NewRouter()
 
-	h := &MyHandler{
-		Storage: memStotage,
-	}
-	r.Get("/", h.ListMetrics)
-	srv := httptest.NewServer(r)
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			req := resty.New().R()
-			req.URL = srv.URL + test.request
-			res, err := req.Send()
-			defer res.Body()
-			assert.Equal(t, test.status, res.StatusCode())
-			assert.Equal(t, nil, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockStorage.EXPECT().GetAllMetric().Return(tt.allMetrics, tt.getAllError)
+			logServer, _ := logger.CreateLogger()
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer)
+
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			if tt.getAllError == nil {
+				assert.Contains(t, w.Body.String(), tt.allMetrics)
+				assert.Contains(t, w.Body.String(), "Metrics List")
+			}
 		})
 	}
 }
+
+func TestSuccessResponse(t *testing.T) {
+	w := httptest.NewRecorder()
+	successResponse(w)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+
+	var response map[string]interface{}
+	err := json.NewDecoder(w.Body).Decode(&response)
+	require.NoError(t, err)
+
+	assert.Equal(t, "success", response["status"])
+	assert.Equal(t, "Запрос обработан", response["message"])
+}
+
+// Mock logger для тестов
+type mockLogger struct{}
+
+func (m *mockLogger) Printf(format string, v ...interface{}) {}
+func (m *mockLogger) Println(v ...interface{})               {}

@@ -105,9 +105,7 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
-	if err := MetricValidate(metricsData); err != nil {
-		return fmt.Errorf("could not validate metrics: %v", err)
-	}
+
 	if metricsData.MType == models.Counter {
 		if metric, exists := s.Metrics[metricsData.ID]; exists {
 			*metricsData.Delta += *metric.Delta
@@ -129,9 +127,6 @@ func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
 	for _, m := range metricsData {
-		if err := MetricValidate(m); err != nil {
-			return fmt.Errorf("could not validate metrics: %v", err)
-		}
 
 		if m.MType == models.Counter {
 
@@ -214,9 +209,5 @@ func (s *Storage) ReadMetricInFile() error {
 	for _, metric := range metricsSlice {
 		s.Metrics[metric.ID] = metric
 	}
-	return nil
-}
-
-func (s *Storage) Connect() error {
 	return nil
 }

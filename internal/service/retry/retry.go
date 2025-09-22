@@ -1,13 +1,10 @@
 package retry
 
 import (
-	"errors"
 	"fmt"
-	"net"
 	"time"
 
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/AleGaliev/runtimemetrics/internal/service/checkerror"
 )
 
 type Retry struct {
@@ -22,23 +19,6 @@ func CreateRetry() Retry {
 	}
 }
 
-func CheckConectionProblem(err error) bool {
-	if err != nil {
-		return false
-	}
-
-	var conectionError net.Error
-	if errors.As(err, &conectionError) {
-		return conectionError.Timeout()
-	}
-
-	var postgresErr *pgconn.PgError
-	if errors.As(err, &postgresErr) {
-		return pgerrcode.IsConnectionException(postgresErr.Code)
-	}
-	return false
-}
-
 func (retry *Retry) RetryConnection(dbFunction func() error) error {
 	var err error
 	for i := 0; i <= retry.RetryCount; i++ {
@@ -47,13 +27,12 @@ func (retry *Retry) RetryConnection(dbFunction func() error) error {
 			return nil
 		}
 
-		if !CheckConectionProblem(err) {
+		if !checkerror.IsRetriableError(err) {
 			return fmt.Errorf("connection problem: %v", err)
 		}
+		fmt.Printf("retrying attempt %d/%d\n", i+1, retry.RetryCount)
 		time.Sleep(retry.Interval[i])
 	}
-	if err != nil {
-		return fmt.Errorf("max retry connect: %v", err)
-	}
-	return nil
+
+	return fmt.Errorf("max retry connect: %v", err)
 }

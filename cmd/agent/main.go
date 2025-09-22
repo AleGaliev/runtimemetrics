@@ -12,6 +12,7 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/agent"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
 	"github.com/AleGaliev/runtimemetrics/internal/repository"
+	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
 
 type flagsAgent struct {
@@ -31,7 +32,8 @@ func main() {
 		panic(errors.Unwrap(err))
 	}
 	clientCfg := repository.NewClientConfig(logServer, arg.baseURL)
-	agentCfg, err := agent.NewAgentConfig(clientCfg, arg.pollInterval, arg.reportInterval)
+
+	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval)
 
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
@@ -39,7 +41,7 @@ func main() {
 
 	for {
 		if err := agentCfg.Run(); err != nil {
-			fmt.Println(errors.Unwrap(err))
+			panic(err)
 		}
 		time.Sleep(1 * time.Second)
 	}
