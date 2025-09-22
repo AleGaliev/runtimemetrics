@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
-	"github.com/AleGaliev/runtimemetrics/mocks"
+	"github.com/AleGaliev/runtimemetrics/internal/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
