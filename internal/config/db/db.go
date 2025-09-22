@@ -32,7 +32,7 @@ const (
 )
 
 type PostgresDB struct {
-	Db             *sql.DB
+	DB             *sql.DB
 	DefaultTimeout time.Duration
 }
 
@@ -44,7 +44,7 @@ func NewPostgresDB(PostgresURL string) (PostgresDB, error) {
 	configureConnectionPool(db)
 
 	return PostgresDB{
-		Db:             db,
+		DB:             db,
 		DefaultTimeout: defaultTimeout,
 	}, nil
 }
@@ -66,7 +66,7 @@ func (p PostgresDB) Connect() error {
 func (p PostgresDB) connectWithTimeout(timeout time.Duration) error {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	if err := p.Db.PingContext(ctx); err != nil {
+	if err := p.DB.PingContext(ctx); err != nil {
 		return fmt.Errorf("ping timeout: %w", err)
 	}
 	return nil
@@ -76,10 +76,10 @@ func (p *PostgresDB) CreateMigration() error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.DefaultTimeout)
 	defer cancel()
 
-	_, err := p.Db.ExecContext(ctx, queryMigration)
+	_, err := p.DB.ExecContext(ctx, queryMigration)
 	return err
 }
 
 func (p *PostgresDB) Close() error {
-	return p.Db.Close()
+	return p.DB.Close()
 }

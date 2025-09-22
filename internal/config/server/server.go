@@ -5,12 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-
-	"github.com/AleGaliev/runtimemetrics/internal/config/db"
-	"github.com/AleGaliev/runtimemetrics/internal/filestore"
-	"github.com/AleGaliev/runtimemetrics/internal/handler"
-	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
-	"github.com/AleGaliev/runtimemetrics/internal/storage"
 )
 
 type ServerConfig struct {
@@ -64,32 +58,4 @@ func NewServerConfig() (ServerConfig, error) {
 		Restore:         *restore,
 		DatabaseDSN:     *databaseDSN,
 	}, nil
-}
-
-func (conf *ServerConfig) CreateMemStorage() (handler.Storage, error) {
-	var memStorage handler.Storage
-	var err error
-	if conf.DatabaseDSN == "" {
-		fileStore := filestore.NewFileStore(conf.FileStoragePath)
-
-		memStorage, err = storage.CreateStorage(fileStore, conf.StoreInterval, conf.Restore)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-		dbConfig, err := db.NewPostgresDB(conf.DatabaseDSN)
-		defer dbConfig.Close()
-		if err != nil {
-			return nil, err
-		}
-
-		if err = dbConfig.CreateMigration(); err != nil {
-			return nil, err
-		}
-
-		memStorage = storage.NewPostgresDBStorage(dbConfig, retry.CreateRetry())
-	}
-
-	return memStorage, nil
 }

@@ -25,8 +25,8 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DbConfig, logServer)
-	defer memStorage.DbConfig.Close()
+	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer)
+	defer memStorage.DBConfig.Close()
 	logServer.StartServerLog(serverConf.AdrHost)
 
 	err = http.ListenAndServe(serverConf.AdrHost, r)

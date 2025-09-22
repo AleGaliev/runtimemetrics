@@ -70,7 +70,7 @@ func (p *PostgresDBStorage) AddMetric(myType, name, value string) error {
 			ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 			defer cancel()
 
-			err = p.dbConfig.Db.QueryRowContext(ctx, queryGet, name, metrics.MType).Scan(&deltaOld)
+			err = p.dbConfig.DB.QueryRowContext(ctx, queryGet, name, metrics.MType).Scan(&deltaOld)
 			if errors.Is(err, sql.ErrNoRows) {
 				metrics.Delta = &i
 			} else if err != nil {
@@ -92,7 +92,7 @@ func (p *PostgresDBStorage) AddMetric(myType, name, value string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
 	err := p.retry.RetryConnection(func() error {
-		_, err := p.dbConfig.Db.ExecContext(ctx, queryUpgrad, metrics.ID, metrics.MType, metrics.Delta, metrics.Value, metrics.Hash)
+		_, err := p.dbConfig.DB.ExecContext(ctx, queryUpgrad, metrics.ID, metrics.MType, metrics.Delta, metrics.Value, metrics.Hash)
 		return err
 	})
 
@@ -109,7 +109,7 @@ func (p *PostgresDBStorage) GetMetrics(name string) (string, bool) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
 
-	err := p.dbConfig.Db.QueryRowContext(ctx, queryGetContent, name).Scan(&content)
+	err := p.dbConfig.DB.QueryRowContext(ctx, queryGetContent, name).Scan(&content)
 	if errors.Is(err, sql.ErrNoRows) {
 		check = true
 	}
@@ -121,7 +121,7 @@ func (p *PostgresDBStorage) GetAllMetric() (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
 
-	rows, err := p.dbConfig.Db.QueryContext(ctx, queryGetAll)
+	rows, err := p.dbConfig.DB.QueryContext(ctx, queryGetAll)
 	if err != nil {
 		return "", fmt.Errorf("failed to query all metrics: %w", err)
 	}
@@ -165,7 +165,7 @@ func (p *PostgresDBStorage) UpdateMetrics(r io.Reader) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
-	_, err := p.dbConfig.Db.ExecContext(ctx, queryUpgrad, metricsData.ID, metricsData.MType, metricsData.Delta, metricsData.Value, metricsData.Hash)
+	_, err := p.dbConfig.DB.ExecContext(ctx, queryUpgrad, metricsData.ID, metricsData.MType, metricsData.Delta, metricsData.Value, metricsData.Hash)
 	if err != nil {
 		return fmt.Errorf("failed to add metric: %w", err)
 	}
@@ -190,7 +190,7 @@ func (p *PostgresDBStorage) BatchUpdateMetrics(r io.Reader) error {
 		metrics[m.ID] = m
 	}
 
-	tx, err := p.dbConfig.Db.Begin()
+	tx, err := p.dbConfig.DB.Begin()
 	if err != nil {
 		return fmt.Errorf("could not start a transaction: %w", err)
 	}
@@ -238,7 +238,7 @@ func (p *PostgresDBStorage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
 
-	err := p.dbConfig.Db.QueryRowContext(ctx, queryGet, metrics.ID, metrics.MType).
+	err := p.dbConfig.DB.QueryRowContext(ctx, queryGet, metrics.ID, metrics.MType).
 		Scan(&metrics.ID, &metrics.MType, &metrics.Delta, &metrics.Value, &metrics.Hash)
 
 	if errors.Is(err, sql.ErrNoRows) {
@@ -259,7 +259,7 @@ func (p *PostgresDBStorage) counterManipulation(metrics *models.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 	defer cancel()
 	if metrics.MType == models.Counter {
-		err := p.dbConfig.Db.QueryRowContext(ctx, queryGet, metrics.ID, metrics.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
+		err := p.dbConfig.DB.QueryRowContext(ctx, queryGet, metrics.ID, metrics.MType).Scan(&metricsOld.ID, &metricsOld.MType, &metricsOld.Delta, &metricsOld.Value, &metricsOld.Hash)
 
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("could not check existing metrics: %w", err)

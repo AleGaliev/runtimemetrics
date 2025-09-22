@@ -14,7 +14,7 @@ import (
 
 type ServerMemStorage struct {
 	MemStorage handler.Storage
-	DbConfig   db.PostgresDB
+	DBConfig   db.PostgresDB
 }
 
 func NewServerMemStorage(serverConf server.ServerConfig) (ServerMemStorage, error) {
@@ -39,7 +39,7 @@ func NewServerMemStorage(serverConf server.ServerConfig) (ServerMemStorage, erro
 		defer memStorage.SaveMetricToFile()
 		return ServerMemStorage{
 			MemStorage: memStorage,
-			DbConfig:   db.PostgresDB{},
+			DBConfig:   db.PostgresDB{},
 		}, nil
 	}
 	dbConfig, err := db.NewPostgresDB(serverConf.DatabaseDSN)
@@ -56,6 +56,6 @@ func NewServerMemStorage(serverConf server.ServerConfig) (ServerMemStorage, erro
 
 	return ServerMemStorage{
 		MemStorage: dbMemStorage,
-		DbConfig:   dbConfig,
+		DBConfig:   dbConfig,
 	}, nil
 }
