@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 type logger interface {
@@ -31,48 +31,46 @@ func NewClientConfig(logger logger, baseURL string) *HTTPSendler {
 		url: &url.URL{
 			Scheme: "http",
 			Host:   baseURL,
-			Path:   "update/",
+			Path:   "updates/",
 		},
 		logger: logger,
 	}
 }
 
 func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
-	for _, metric := range metrics {
 
-		jsonMetrics, err := json.Marshal(metric)
-		if err != nil {
-			return fmt.Errorf("could not marshal metrics: %v", err)
-		}
+	jsonMetrics, err := json.Marshal(metrics)
+	if err != nil {
+		return fmt.Errorf("could not marshal metrics: %v", err)
+	}
 
-		var buf bytes.Buffer
-		gz := gzip.NewWriter(&buf)
-		if _, err := gz.Write(jsonMetrics); err != nil {
-			return fmt.Errorf("could not gzip metrics: %v", err)
-		}
-		if err := gz.Close(); err != nil {
-			return fmt.Errorf("could not gzip metrics: %v", err)
-		}
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(jsonMetrics); err != nil {
+		return fmt.Errorf("could not gzip metrics: %v", err)
+	}
+	if err := gz.Close(); err != nil {
+		return fmt.Errorf("could not gzip metrics: %v", err)
+	}
 
-		request, err := http.NewRequest(http.MethodPost, h.url.String(), &buf)
+	request, err := http.NewRequest(http.MethodPost, h.url.String(), &buf)
 
-		if err != nil {
-			return fmt.Errorf("error creating request: %v", err)
-		}
-		request.Header.Set("Content-Encoding", "gzip")
-		request.Header.Set("Content-Type", "application/json")
-		request.Header.Set("Accept-Encoding", "gzip")
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+	request.Header.Set("Content-Encoding", "gzip")
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept-Encoding", "gzip")
 
-		response, err := h.MiddlewareLoggerDo(request)
+	response, err := h.MiddlewareLoggerDo(request)
 
-		if err != nil {
-			return fmt.Errorf("error sending request: %v", err)
-		}
-		response.Body.Close()
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	response.Body.Close()
 
-		if response.StatusCode != http.StatusOK {
-			return fmt.Errorf("error sending request: %d %s", response.StatusCode, response.Status)
-		}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("error sending request: %d %s", response.StatusCode, response.Status)
 	}
 
 	return nil

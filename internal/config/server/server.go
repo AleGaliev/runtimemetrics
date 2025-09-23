@@ -12,12 +12,14 @@ type ServerConfig struct {
 	StoreInterval   int
 	FileStoragePath string
 	Restore         bool
+	DatabaseDSN     string
 }
 
 func NewServerConfig() (ServerConfig, error) {
 	adrHost := flag.String("a", "localhost:8080", "Endpoint http server")
 	storeInterval := flag.Int("i", 2, "interval save metrics in storage")
 	fileStoragePath := flag.String("f", "storage.json", "filepath save metric storage")
+	databaseDSN := flag.String("d", "", "database DSN")
 	restore := flag.Bool("r", true, "read file storage metrics")
 	flag.Parse()
 
@@ -45,10 +47,15 @@ func NewServerConfig() (ServerConfig, error) {
 		}
 		restore = &boolVarRestore
 	}
+	varDatabaseDSN, ok := os.LookupEnv("DATABASE_DSN")
+	if ok {
+		databaseDSN = &varDatabaseDSN
+	}
 	return ServerConfig{
 		AdrHost:         *adrHost,
 		StoreInterval:   *storeInterval,
 		FileStoragePath: *fileStoragePath,
 		Restore:         *restore,
+		DatabaseDSN:     *databaseDSN,
 	}, nil
 }

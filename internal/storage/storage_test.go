@@ -3,8 +3,8 @@ package storage
 import (
 	"testing"
 
-	"github.com/AleGaliev/kubercontroller/internal/filestore"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/filestore"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -170,7 +170,7 @@ func TestStorage_GetAllMetric(t *testing.T) {
 			s := &Storage{
 				Metrics: metrics,
 			}
-			if got := s.GetAllMetric(); got != tt.want {
+			if got, _ := s.GetAllMetric(); got != tt.want {
 				t.Errorf("GetAllMetric() = %v, want %v", got, tt.want)
 			}
 		})

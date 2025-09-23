@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"testing"
 
-	agentlogger "github.com/AleGaliev/kubercontroller/internal/logger"
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	agentlogger "github.com/AleGaliev/runtimemetrics/internal/logger"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 

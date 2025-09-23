@@ -6,7 +6,7 @@ import (
 	"io"
 	"strconv"
 
-	models "github.com/AleGaliev/kubercontroller/internal/model"
+	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
 
 type fileStore interface {
@@ -85,7 +85,7 @@ func (s *Storage) GetMetrics(name string) (string, bool) {
 	return "", false
 }
 
-func (s *Storage) GetAllMetric() string {
+func (s *Storage) GetAllMetric() (string, error) {
 	result := ""
 	for _, m := range s.Metrics {
 		switch m.MType {
@@ -96,7 +96,7 @@ func (s *Storage) GetAllMetric() string {
 
 		}
 	}
-	return result
+	return result, nil
 }
 
 func (s *Storage) UpdateMetrics(r io.Reader) error {
@@ -106,31 +106,40 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
 
-	switch metricsData.MType {
-
-	case models.Gauge:
-		if metricsData.Value == nil {
-			return fmt.Errorf("metrics value is nil")
-		}
-		s.Metrics[metricsData.ID] = metricsData
-
-	case models.Counter:
-
-		if metricsData.Delta == nil {
-			return fmt.Errorf("metrics delta is nil")
-		}
-
+	if metricsData.MType == models.Counter {
 		if metric, exists := s.Metrics[metricsData.ID]; exists {
-			*metric.Delta += *metricsData.Delta
-		} else {
-			s.Metrics[metricsData.ID] = metricsData
+			*metricsData.Delta += *metric.Delta
 		}
-	default:
-		return fmt.Errorf("unknown metric type: %s", metricsData.MType)
 	}
+	s.Metrics[metricsData.ID] = metricsData
 	if s.StoreInterval == 0 {
 		if err := s.SaveMetricToFile(); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
+	data := json.NewDecoder(r)
+	var metricsData []models.Metrics
+	if err := data.Decode(&metricsData); err != nil {
+		return fmt.Errorf("could not decode metrics: %v", err)
+	}
+	for _, m := range metricsData {
+
+		if m.MType == models.Counter {
+
+			if metric, exists := s.Metrics[m.ID]; exists {
+				*m.Delta += *metric.Delta
+			}
+		}
+		s.Metrics[m.ID] = m
+
+		if s.StoreInterval == 0 {
+			if err := s.SaveMetricToFile(); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
