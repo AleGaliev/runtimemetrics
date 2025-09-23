@@ -10,6 +10,7 @@ import (
 	"time"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 )
 
 type logger interface {
@@ -19,11 +20,12 @@ type HTTPSendler struct {
 	client *http.Client
 	//baseURL *string
 	//shema   string
-	url    *url.URL
-	logger logger
+	url     *url.URL
+	logger  logger
+	keyHash string
 }
 
-func NewClientConfig(logger logger, baseURL string) *HTTPSendler {
+func NewClientConfig(logger logger, baseURL, keyHash string) *HTTPSendler {
 	return &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
@@ -33,7 +35,8 @@ func NewClientConfig(logger logger, baseURL string) *HTTPSendler {
 			Host:   baseURL,
 			Path:   "updates/",
 		},
-		logger: logger,
+		logger:  logger,
+		keyHash: keyHash,
 	}
 }
 
@@ -58,6 +61,12 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("error creating request: %v", err)
 	}
+
+	if h.keyHash != "" {
+		hashSendler := hash.CreateHash("kjnksjnd", jsonMetrics)
+		request.Header.Set(`HashSHA256`, hashSendler)
+	}
+
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept-Encoding", "gzip")

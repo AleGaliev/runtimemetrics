@@ -19,6 +19,7 @@ type flagsAgent struct {
 	baseURL        string
 	pollInterval   int
 	reportInterval int
+	hashKey        string
 }
 
 func main() {
@@ -31,7 +32,7 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-	clientCfg := repository.NewClientConfig(logServer, arg.baseURL)
+	clientCfg := repository.NewClientConfig(logServer, arg.baseURL, arg.hashKey)
 
 	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval)
 
@@ -72,11 +73,18 @@ func initConfig() (flagsAgent, error) {
 		}
 		reportInterval = &StrReportInterval
 	}
+	hashKey := flag.String("k", "", "key agent encryption")
+	varHashKey, ok := os.LookupEnv("POLL_INTERVAL")
+	if ok {
+		hashKey = &varHashKey
+	}
+
 	flag.Parse()
 
 	return flagsAgent{
 		baseURL:        *baseURL,
 		pollInterval:   *pollInterval,
 		reportInterval: *reportInterval,
+		hashKey:        *hashKey,
 	}, nil
 }

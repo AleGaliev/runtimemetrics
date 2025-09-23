@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AleGaliev/runtimemetrics/internal/middleware"
+	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -34,12 +35,14 @@ type Storage interface {
 type MyHandler struct {
 	storage   Storage
 	connector connector
+	hashKey   string
 }
 
-func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger) http.Handler {
+func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string) http.Handler {
 	h := &MyHandler{
 		storage:   storage,
 		connector: connector,
+		hashKey:   hashKey,
 	}
 
 	mux := chi.NewRouter()
@@ -61,7 +64,7 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	mux.Get("/", h.ListMetrics)
 	mux.Get("/ping", h.GetPing)
 
-	muxMiddlewareValidate := middleware.MetricValidateMiddleware(mux)
+	muxMiddlewareValidate := middleware.MetricValidateMiddleware(mux, hashKey)
 	muxGzip := middleware.GzipMiddlewareHandler(muxMiddlewareValidate)
 	muxMiddlewareLogger := middleware.MiddlewareHandlerLogger(muxGzip, logger)
 
@@ -75,7 +78,7 @@ func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	res.Header().Set("Content-Type", "application/json")
-	successResponse(res)
+	successResponse(res, h.hashKey)
 }
 
 // ServeHTTPUpdate добавление метрики в формате json
@@ -90,7 +93,7 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	successResponse(res)
+	successResponse(res, h.hashKey)
 }
 
 func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
@@ -103,7 +106,7 @@ func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Reque
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	successResponse(res)
+	successResponse(res, h.hashKey)
 }
 
 // ServeHTTPValue получение метрик в формате json
@@ -122,6 +125,12 @@ func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
+
+	if h.hashKey != "" {
+		hashSHA256 := hash.CreateHash(h.hashKey, metrics)
+		res.Header().Set("HashSHA256", hashSHA256)
+	}
+
 	_, err = res.Write(metrics)
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
@@ -185,14 +194,23 @@ func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
     `)
 }
 
-func successResponse(res http.ResponseWriter) {
+func successResponse(res http.ResponseWriter, hashKey string) {
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusOK)
 	response := map[string]interface{}{
 		"status":  `success`,
 		"message": "Запрос обработан",
 	}
-	if err := json.NewEncoder(res).Encode(response); err != nil {
+	jsonBytes, err := json.Marshal(response)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+	}
+	if hashKey != "" {
+		hashSHA256 := hash.CreateHash(hashKey, jsonBytes)
+		res.Header().Set("HashSHA256", hashSHA256)
+	}
+	_, err = res.Write(jsonBytes)
+	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
 	}
 }
