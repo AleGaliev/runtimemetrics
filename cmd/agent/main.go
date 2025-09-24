@@ -74,11 +74,10 @@ func initConfig() (flagsAgent, error) {
 		reportInterval = &StrReportInterval
 	}
 	hashKey := flag.String("k", "", "key agent encryption")
-	varHashKey, ok := os.LookupEnv("POLL_INTERVAL")
+	varHashKey, ok := os.LookupEnv("KEY")
 	if ok {
 		hashKey = &varHashKey
 	}
-
 	flag.Parse()
 
 	return flagsAgent{

@@ -53,7 +53,7 @@ func NewServerConfig() (ServerConfig, error) {
 	if ok {
 		databaseDSN = &varDatabaseDSN
 	}
-	varHashKey, ok := os.LookupEnv("POLL_INTERVAL")
+	varHashKey, ok := os.LookupEnv("KEY")
 	if ok {
 		hashKey = &varHashKey
 	}
