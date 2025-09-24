@@ -25,7 +25,7 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer)
+	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer, serverConf.HashKey)
 	defer memStorage.DBConfig.Close()
 	logServer.StartServerLog(serverConf.AdrHost)
 

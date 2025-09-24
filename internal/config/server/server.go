@@ -13,6 +13,7 @@ type ServerConfig struct {
 	FileStoragePath string
 	Restore         bool
 	DatabaseDSN     string
+	HashKey         string
 }
 
 func NewServerConfig() (ServerConfig, error) {
@@ -21,6 +22,7 @@ func NewServerConfig() (ServerConfig, error) {
 	fileStoragePath := flag.String("f", "storage.json", "filepath save metric storage")
 	databaseDSN := flag.String("d", "", "database DSN")
 	restore := flag.Bool("r", true, "read file storage metrics")
+	hashKey := flag.String("k", "", "key server encryp/decrypt")
 	flag.Parse()
 
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
@@ -51,11 +53,16 @@ func NewServerConfig() (ServerConfig, error) {
 	if ok {
 		databaseDSN = &varDatabaseDSN
 	}
+	varHashKey, ok := os.LookupEnv("KEY")
+	if ok {
+		hashKey = &varHashKey
+	}
 	return ServerConfig{
 		AdrHost:         *adrHost,
 		StoreInterval:   *storeInterval,
 		FileStoragePath: *fileStoragePath,
 		Restore:         *restore,
 		DatabaseDSN:     *databaseDSN,
+		HashKey:         *hashKey,
 	}, nil
 }
