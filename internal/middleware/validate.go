@@ -28,7 +28,7 @@ func MetricValidateMiddleware(next http.Handler, keyHash string) http.Handler {
 
 		verifiableHash := req.Header.Get("HashSHA256")
 
-		if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) && keyHash != "" {
+		if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) && verifiableHash != "" {
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}

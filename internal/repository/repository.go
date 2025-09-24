@@ -65,8 +65,6 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	if h.keyHash != "" {
 		hashSendler := hash.CreateHash(h.keyHash, jsonMetrics)
 		request.Header.Set(`HashSHA256`, hashSendler)
-		fmt.Println(hashSendler)
-		fmt.Println(h.keyHash)
 	}
 
 	request.Header.Set("Content-Encoding", "gzip")
