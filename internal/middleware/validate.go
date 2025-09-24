@@ -18,6 +18,7 @@ func MetricValidateMiddleware(next http.Handler, keyHash string) http.Handler {
 			next.ServeHTTP(res, req)
 			return
 		}
+		res.Header().Set("Content-Type", "application/json")
 
 		bodyBytes, err := io.ReadAll(req.Body)
 		if err != nil {
@@ -26,7 +27,10 @@ func MetricValidateMiddleware(next http.Handler, keyHash string) http.Handler {
 		}
 
 		verifiableHash := req.Header.Get("HashSHA256")
-		if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) {
+		fmt.Println(verifiableHash)
+		fmt.Println(keyHash)
+		if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) && verifiableHash != "" {
+
 			res.WriteHeader(http.StatusBadRequest)
 		}
 

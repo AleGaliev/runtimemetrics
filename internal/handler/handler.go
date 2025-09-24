@@ -77,13 +77,12 @@ func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	res.Header().Set("Content-Type", "application/json")
 	successResponse(res, h.hashKey)
 }
 
 // ServeHTTPUpdate добавление метрики в формате json
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
+
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -97,7 +96,7 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
+
 	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -111,7 +110,7 @@ func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Reque
 
 // ServeHTTPValue получение метрик в формате json
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
-	res.Header().Set("Content-Type", "application/json")
+
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -195,8 +194,6 @@ func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
 }
 
 func successResponse(res http.ResponseWriter, hashKey string) {
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusOK)
 	response := map[string]interface{}{
 		"status":  `success`,
 		"message": "Запрос обработан",
