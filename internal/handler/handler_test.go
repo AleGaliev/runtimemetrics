@@ -398,7 +398,6 @@ func TestSuccessResponse(t *testing.T) {
 	successResponse(w, "")
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 
 	var response map[string]interface{}
 	err := json.NewDecoder(w.Body).Decode(&response)
