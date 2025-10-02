@@ -1,17 +1,94 @@
 package collector
 
 import (
+	"context"
+	"fmt"
 	"math/rand"
 	"runtime"
+	"sync"
+	"time"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 )
+
+type MetricsCollector struct {
+	mu           sync.RWMutex
+	metrics      chan []models.Metrics
+	pollCount    int64
+	pollInterval int
+}
+
+func NewMetricsCollector(pollInterval int, metrics chan []models.Metrics) *MetricsCollector {
+	return &MetricsCollector{
+		metrics:      metrics,
+		pollCount:    0,
+		pollInterval: pollInterval,
+	}
+}
 
 func float64Ptr(f float64) *float64 {
 	return &f
 }
 
-func PullMetrics(pollCount int64) []models.Metrics {
+func (mc *MetricsCollector) CollectMetrics(ctx context.Context) {
+
+	tickerSystem := time.NewTicker(time.Duration(mc.pollInterval) * time.Second)
+	defer tickerSystem.Stop()
+	tickerRuntime := time.NewTicker(time.Duration(mc.pollInterval) * time.Second)
+	defer tickerRuntime.Stop()
+
+	go func() {
+		var pullCounter int64
+		for {
+			pullCounter++
+
+			mc.metrics <- collectRuntimeMetrics(pullCounter)
+
+			select {
+			case <-ctx.Done():
+				return
+			case <-tickerRuntime.C:
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			metrics, _ := collectSystemMetrics()
+			mc.metrics <- metrics
+			select {
+			case <-ctx.Done():
+				return
+			case <-tickerSystem.C:
+			}
+		}
+	}()
+
+	<-ctx.Done()
+
+}
+
+func collectSystemMetrics() ([]models.Metrics, error) {
+	sysMetrics, err := mem.VirtualMemory()
+	if err != nil {
+		return nil, fmt.Errorf("collectSystemMetrics error: %w", err)
+	}
+	logicalCPUs, err := cpu.Counts(true)
+	if err != nil {
+		return nil, fmt.Errorf("collectSystemMetrics cpu error: %w", err)
+	}
+	metrics := []models.Metrics{
+		{ID: "TotalMemory", MType: models.Gauge, Value: float64Ptr(float64(sysMetrics.Total))},
+		{ID: "FreeMemory", MType: models.Gauge, Value: float64Ptr(float64(sysMetrics.Free))},
+		{ID: "CPUutilization1", MType: models.Gauge, Value: float64Ptr(float64(logicalCPUs))},
+	}
+	return metrics, nil
+
+}
+
+func collectRuntimeMetrics(pollCount int64) []models.Metrics {
 	metRuntime := runtime.MemStats{}
 
 	runtime.ReadMemStats(&metRuntime)

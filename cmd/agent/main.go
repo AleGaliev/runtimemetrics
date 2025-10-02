@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/AleGaliev/runtimemetrics/internal/agent"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
@@ -20,6 +20,7 @@ type flagsAgent struct {
 	pollInterval   int
 	reportInterval int
 	hashKey        string
+	RateLimit      int
 }
 
 func main() {
@@ -34,17 +35,16 @@ func main() {
 	}
 	clientCfg := repository.NewClientConfig(logServer, arg.baseURL, arg.hashKey)
 
-	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval)
+	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval, arg.RateLimit)
 
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
 	}
 
-	for {
-		if err := agentCfg.Run(); err != nil {
-			panic(err)
-		}
-		time.Sleep(1 * time.Second)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err = agentCfg.Run(ctx); err != nil {
+		panic(err)
 	}
 }
 
@@ -85,5 +85,6 @@ func initConfig() (flagsAgent, error) {
 		pollInterval:   *pollInterval,
 		reportInterval: *reportInterval,
 		hashKey:        *hashKey,
+		RateLimit:      10,
 	}, nil
 }
