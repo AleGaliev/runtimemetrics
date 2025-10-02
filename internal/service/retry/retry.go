@@ -21,7 +21,8 @@ func CreateRetry() Retry {
 
 func (retry *Retry) RetryConnection(dbFunction func() error) error {
 	var err error
-	for i := 0; i <= retry.RetryCount; i++ {
+	for i := 0; i < retry.RetryCount; i++ {
+
 		err = dbFunction()
 		if err == nil {
 			return nil

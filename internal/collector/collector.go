@@ -40,11 +40,13 @@ func (mc *MetricsCollector) CollectMetrics(ctx context.Context) {
 	defer tickerRuntime.Stop()
 
 	go func() {
-		var pullCounter int64
-		for {
-			pullCounter++
 
-			mc.metrics <- collectRuntimeMetrics(pullCounter)
+		for {
+			mc.mu.RLock()
+			mc.pollCount++
+			mc.mu.RUnlock()
+
+			mc.metrics <- collectRuntimeMetrics(mc.pollCount)
 
 			select {
 			case <-ctx.Done():

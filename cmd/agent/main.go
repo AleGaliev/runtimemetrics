@@ -57,6 +57,7 @@ func initConfig() (flagsAgent, error) {
 
 	pollInterval := flag.Int("p", 2, "Interval poll metrics")
 	reportInterval := flag.Int("r", 10, "Interval report metrics")
+	rateLimit := flag.Int("l", 10, "Interval poll metrics")
 	varPollInterval, ok := os.LookupEnv("POLL_INTERVAL")
 	if ok {
 		StrPollInterval, err := strconv.Atoi(varPollInterval)
@@ -78,6 +79,14 @@ func initConfig() (flagsAgent, error) {
 	if ok {
 		hashKey = &varHashKey
 	}
+	varRateLimit, ok := os.LookupEnv("RATE_LIMIT")
+	if ok {
+		StrRateLimit, err := strconv.Atoi(varRateLimit)
+		if err != nil {
+			return flagsAgent{}, fmt.Errorf("error converting RATE_LIMIT to int: %v", err)
+		}
+		rateLimit = &StrRateLimit
+	}
 	flag.Parse()
 
 	return flagsAgent{
@@ -85,6 +94,6 @@ func initConfig() (flagsAgent, error) {
 		pollInterval:   *pollInterval,
 		reportInterval: *reportInterval,
 		hashKey:        *hashKey,
-		RateLimit:      10,
+		RateLimit:      *rateLimit,
 	}, nil
 }

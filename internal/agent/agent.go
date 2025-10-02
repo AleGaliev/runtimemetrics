@@ -42,21 +42,11 @@ func (c *AgentConfig) Run(ctx context.Context) error {
 	pullMetrics := collector.NewMetricsCollector(c.pollInterval, metrics)
 	go pullMetrics.CollectMetrics(ctx)
 
-	reportMetrics := consumer.NewMetricsConsumer(c.workers, c.reportInterval, c.Rep, metrics)
-	go reportMetrics.ConsumerRun(ctx)
+	reportMetrics := consumer.NewMetricsConsumer(c.workers, c.reportInterval, c.Rep, &c.retry, metrics)
 
-	//if c.counter%c.reportInterval == 0 {
-	//	if err := c.retry.RetryConnection(func() error {
-	//		if err := c.Rep.SendMetricsRequest(metrics); err != nil {
-	//			return err
-	//		}
-	//		return nil
-	//	}); err != nil {
-	//		return err
-	//	}
-	//}
-	//c.counter++
-	<-ctx.Done()
+	if err := reportMetrics.ConsumerRun(ctx); err != nil {
+		return err
+	}
+
 	return nil
-
 }
