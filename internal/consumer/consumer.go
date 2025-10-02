@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
@@ -29,20 +30,31 @@ func NewMetricsConsumer(workers, reportInterval int, rep Rep, metrics chan []mod
 }
 
 func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) {
-	w := 3
-	for i := 0; i < w; i++ {
-		go func() {
-			for {
-				ticker := time.NewTicker(time.Duration(mc.reportInterval) * time.Second)
-				defer ticker.Stop()
-				select {
-				case <-ticker.C:
-					mc.Rep.SendMetricsRequest(<-mc.metrics)
-				}
-			}
-		}()
+	ticker := time.NewTicker(time.Duration(mc.reportInterval) * time.Second)
+	defer ticker.Stop()
+
+	jobs := make(chan []models.Metrics, 100)
+	for w := 1; w <= mc.workers; w++ {
+		go mc.ConsumerWorker(jobs)
 	}
-	select {
-	case <-ctx.Done():
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			for metrics := range mc.metrics {
+				jobs <- metrics
+			}
+		}
+	}
+}
+
+func (mc *MetricsConsumer) ConsumerWorker(metrics <-chan []models.Metrics) {
+	for metric := range metrics {
+		err := mc.Rep.SendMetricsRequest(metric)
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 }
