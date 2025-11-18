@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"context"
+
 	"github.com/AleGaliev/runtimemetrics/internal/collector"
+	"github.com/AleGaliev/runtimemetrics/internal/consumer"
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
@@ -18,9 +21,10 @@ type AgentConfig struct {
 	pollInterval   int
 	reportInterval int
 	retry          retry.Retry
+	workers        int
 }
 
-func NewAgentConfig(rep Rep, retry retry.Retry, pollInterval, reportInterval int) (*AgentConfig, error) {
+func NewAgentConfig(rep Rep, retry retry.Retry, pollInterval, reportInterval, workers int) (*AgentConfig, error) {
 	return &AgentConfig{
 		pollCount:      1,
 		counter:        1,
@@ -28,28 +32,21 @@ func NewAgentConfig(rep Rep, retry retry.Retry, pollInterval, reportInterval int
 		reportInterval: reportInterval,
 		Rep:            rep,
 		retry:          retry,
+		workers:        workers,
 	}, nil
 }
 
-func (c *AgentConfig) Run() error {
-	metrics := []models.Metrics{}
+func (c *AgentConfig) Run(ctx context.Context) error {
+	metrics := make(chan []models.Metrics, 100)
 
-	if c.counter%c.pollInterval == 0 {
-		metrics = collector.PullMetrics(c.pollCount)
-		c.pollCount++
+	pullMetrics := collector.NewMetricsCollector(c.pollInterval, metrics)
+	go pullMetrics.CollectMetrics(ctx)
+
+	reportMetrics := consumer.NewMetricsConsumer(c.workers, c.reportInterval, c.Rep, &c.retry, metrics)
+
+	if err := reportMetrics.ConsumerRun(ctx); err != nil {
+		return err
 	}
 
-	if c.counter%c.reportInterval == 0 {
-		if err := c.retry.RetryConnection(func() error {
-			if err := c.Rep.SendMetricsRequest(metrics); err != nil {
-				return err
-			}
-			return nil
-		}); err != nil {
-			return err
-		}
-	}
-	c.counter++
 	return nil
-
 }

@@ -8,20 +8,31 @@ import (
 	"net/http"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 )
 
-func MetricValidateMiddleware(next http.Handler) http.Handler {
+func MetricValidateMiddleware(next http.Handler, keyHash string) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+
 		if req.Method == http.MethodGet || req.Header.Get("Content-Type") != "application/json" {
 			next.ServeHTTP(res, req)
 			return
 		}
+		res.Header().Set("Content-Type", "application/json")
 
 		bodyBytes, err := io.ReadAll(req.Body)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		verifiableHash := req.Header.Get("HashSHA256")
+
+		if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) && verifiableHash != "" {
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		req.Body.Close()
 
 		req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))

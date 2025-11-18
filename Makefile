@@ -62,6 +62,10 @@ test_iter13:
 	@echo "🧪 Running tests iter13"
 	metricstest -test.v -test.run=^TestIteration13$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -database-dsn='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' -server-port=3333 -source-path=.
 
+test_iter14:
+	@echo "🧪 Running tests iter14"
+	metricstest -test.v -test.run=^TestIteration14$$ -agent-binary-path=cmd/agent/agent -binary-path=cmd/server/server -database-dsn='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable' -key="kmvkmvkdf" -server-port=3333 -source-path=.
+
 clean:
 	rm -rf cmd/agent/agent cmd/server/server
 
