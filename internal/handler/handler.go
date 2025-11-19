@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/AleGaliev/runtimemetrics/internal/middleware"
+	"github.com/AleGaliev/runtimemetrics/internal/observer"
 	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 	"github.com/go-chi/chi/v5"
 )
@@ -38,7 +39,7 @@ type MyHandler struct {
 	hashKey   string
 }
 
-func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string) http.Handler {
+func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event) http.Handler {
 	h := &MyHandler{
 		storage:   storage,
 		connector: connector,
@@ -46,7 +47,6 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	}
 
 	mux := chi.NewRouter()
-
 	mux.Route("/update/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPUpdate)
 		r.Post("/{type}/{name}/{value}", h.ServeHTTP)
@@ -58,7 +58,8 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	})
 
 	mux.Route("/updates/", func(r chi.Router) {
-		r.Post("/", h.ServeHTTPBatchUpdate)
+		r.With(middleware.AuditMiddleware(eventAudit)).
+			Post("/", h.ServeHTTPBatchUpdate)
 	})
 
 	mux.Get("/", h.ListMetrics)
