@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/internal/observer"
 	"github.com/AleGaliev/runtimemetrics/mocks"
 	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
@@ -47,7 +48,7 @@ func TestMyHandler_GetPing(t *testing.T) {
 			mockConnector.EXPECT().Connect().Return(tt.connectError)
 			logServer, _ := logger.CreateLogger()
 
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodGet, "/ping", nil)
 			w := httptest.NewRecorder()
@@ -117,7 +118,7 @@ func TestMyHandler_ServeHTTPUpdate(t *testing.T) {
 			}
 
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(tt.method, "/update/", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", tt.contentType)
@@ -161,7 +162,7 @@ func TestMyHandler_ServeHTTPBatchUpdate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage.EXPECT().BatchUpdateMetrics(gomock.Any()).Return(tt.batchError)
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodPost, "/updates/", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
@@ -219,7 +220,7 @@ func TestMyHandler_ServeHTTPValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage.EXPECT().ValueMetrics(gomock.Any()).Return(tt.metrics, tt.found, tt.valueError)
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodPost, "/value/", strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/json")
@@ -277,7 +278,7 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 				mockStorage.EXPECT().AddMetric("gauge", "test", "1.5").Return(nil)
 			}
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodPost, tt.url, nil)
 			w := httptest.NewRecorder()
@@ -323,7 +324,7 @@ func TestMyHandler_GetValue(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage.EXPECT().GetMetrics(tt.metricName).Return(tt.metricValue, tt.found)
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tt.metricName, nil)
 			w := httptest.NewRecorder()
@@ -376,7 +377,7 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockStorage.EXPECT().GetAllMetric().Return(tt.allMetrics, tt.getAllError)
 			logServer, _ := logger.CreateLogger()
-			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "")
+			handler := CreateMyHandler(mockStorage, mockConnector, logServer, "", observer.NewEvent())
 
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
