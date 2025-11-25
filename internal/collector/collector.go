@@ -33,14 +33,12 @@ func float64Ptr(f float64) *float64 {
 }
 
 func (mc *MetricsCollector) CollectMetrics(ctx context.Context) {
-
 	tickerSystem := time.NewTicker(time.Duration(mc.pollInterval) * time.Second)
 	defer tickerSystem.Stop()
 	tickerRuntime := time.NewTicker(time.Duration(mc.pollInterval) * time.Second)
 	defer tickerRuntime.Stop()
 
 	go func() {
-
 		for {
 			mc.mu.RLock()
 			mc.pollCount++
@@ -69,7 +67,6 @@ func (mc *MetricsCollector) CollectMetrics(ctx context.Context) {
 	}()
 
 	<-ctx.Done()
-
 }
 
 func collectSystemMetrics() ([]models.Metrics, error) {
@@ -87,7 +84,6 @@ func collectSystemMetrics() ([]models.Metrics, error) {
 		{ID: "CPUutilization1", MType: models.Gauge, Value: float64Ptr(float64(logicalCPUs))},
 	}
 	return metrics, nil
-
 }
 
 func collectRuntimeMetrics(pollCount int64) []models.Metrics {

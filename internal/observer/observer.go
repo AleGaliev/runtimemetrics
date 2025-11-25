@@ -25,11 +25,13 @@ func NewEvent() *Event {
 	return &Event{}
 }
 
-func (e *Event) Register(o Observer) {
+func (e *Event) Register(o ...Observer) {
 	if e.observers == nil {
 		e.observers = make(map[string]Observer)
 	}
-	e.observers[o.GetID()] = o
+	for _, o := range o {
+		e.observers[o.GetID()] = o
+	}
 }
 
 func (e *Event) Deregister(o Observer) {

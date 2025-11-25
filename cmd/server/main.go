@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
+	_ "net/http/pprof"
+
 	"github.com/AleGaliev/runtimemetrics/internal/config/server"
 	"github.com/AleGaliev/runtimemetrics/internal/handler"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
@@ -25,6 +27,7 @@ func main() {
 	}
 
 	eventAudit := observer.NewEvent()
+
 	auditFile, err := repository.CreateAuditSaveFile(serverConf.AuditFile)
 	if err != nil {
 		fmt.Println("Error creating audit file", err)
@@ -50,5 +53,4 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-
 }

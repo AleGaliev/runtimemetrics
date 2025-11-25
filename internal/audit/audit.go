@@ -12,10 +12,10 @@ type Audit struct {
 	IPAddress string   `json:"ip_address"`
 }
 
-func CreateAuditMessage(metrics []models.Metrics, ip string) Audit {
+func CreateAuditMessage(ip string, metrics []models.Metrics) Audit {
 	metricsNames := make([]string, len(metrics))
-	for _, metric := range metrics {
-		metricsNames = append(metricsNames, metric.ID)
+	for i, metric := range metrics {
+		metricsNames[i] = metric.ID
 	}
 	return Audit{
 		Ts:        time.Now().Unix(),

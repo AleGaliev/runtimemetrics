@@ -129,7 +129,6 @@ func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
 	for _, m := range metricsData {
 
 		if m.MType == models.Counter {
-
 			if metric, exists := s.Metrics[m.ID]; exists {
 				*m.Delta += *metric.Delta
 			}
@@ -173,7 +172,6 @@ func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 }
 
 func (s *Storage) SaveMetricToFile() error {
-
 	var metricsSlice []models.Metrics
 
 	for _, metric := range s.Metrics {
@@ -193,7 +191,6 @@ func (s *Storage) SaveMetricToFile() error {
 
 func (s *Storage) ReadMetricInFile() error {
 	dataBytes, err := s.FileStorage.ReadMetrics()
-
 	if err != nil {
 		if err.Error() == "file is empty" {
 			return nil

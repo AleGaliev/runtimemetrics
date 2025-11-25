@@ -3,9 +3,11 @@ package repository
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/AleGaliev/runtimemetrics/internal/audit"
@@ -19,9 +21,13 @@ type AuditSender struct {
 	client http.Client
 	url    url.URL
 	name   string
+	mu     sync.Mutex
 }
 
 func NewAuditSender(addrAuditServer string) (*AuditSender, error) {
+	if addrAuditServer == "" {
+		return nil, errors.New("address audit server is empty")
+	}
 	auditServer, err := url.Parse(addrAuditServer)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse url: %w", err)
@@ -40,6 +46,8 @@ func NewAuditSender(addrAuditServer string) (*AuditSender, error) {
 }
 
 func (a *AuditSender) SendAudit(message audit.Audit) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	jsonData, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("could not marshal json: %w", err)

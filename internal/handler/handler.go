@@ -1,16 +1,23 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/pprof"
 	"strings"
 
 	"github.com/AleGaliev/runtimemetrics/internal/middleware"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
 	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 	"github.com/go-chi/chi/v5"
+)
+
+const (
+	contentTypeJSON  = "application/json"
+	headerHashSHA256 = "HashSHA256"
 )
 
 type metricWriter interface {
@@ -47,29 +54,33 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	}
 
 	mux := chi.NewRouter()
-	mux.Route("/update/", func(r chi.Router) {
+	muxWithMiddlewares := mux.With(
+		middleware.MiddlewareHandlerLogger(logger),
+		middleware.GzipMiddlewareHandler(),
+		middleware.MetricValidateMiddleware(hashKey),
+	)
+	muxWithMiddlewares.Route("/", func(r chi.Router) {
+		r.Mount("/debug/pprof", pprofRoutes())
+	})
+	muxWithMiddlewares.Route("/update/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPUpdate)
 		r.Post("/{type}/{name}/{value}", h.ServeHTTP)
 	})
 
-	mux.Route("/value/", func(r chi.Router) {
+	muxWithMiddlewares.Route("/value/", func(r chi.Router) {
 		r.Post("/", h.ServeHTTPValue)
 		r.Get("/{type}/{name}", h.GetValue)
 	})
 
-	mux.Route("/updates/", func(r chi.Router) {
+	muxWithMiddlewares.Route("/updates/", func(r chi.Router) {
 		r.With(middleware.AuditMiddleware(eventAudit)).
 			Post("/", h.ServeHTTPBatchUpdate)
 	})
 
-	mux.Get("/", h.ListMetrics)
-	mux.Get("/ping", h.GetPing)
+	muxWithMiddlewares.Get("/", h.ListMetrics)
+	muxWithMiddlewares.Get("/ping", h.GetPing)
 
-	muxMiddlewareValidate := middleware.MetricValidateMiddleware(mux, hashKey)
-	muxGzip := middleware.GzipMiddlewareHandler(muxMiddlewareValidate)
-	muxMiddlewareLogger := middleware.MiddlewareHandlerLogger(muxGzip, logger)
-
-	return muxMiddlewareLogger
+	return muxWithMiddlewares
 }
 
 func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
@@ -83,7 +94,6 @@ func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 
 // ServeHTTPUpdate добавление метрики в формате json
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
-
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -97,7 +107,6 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
-
 	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -111,7 +120,6 @@ func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Reque
 
 // ServeHTTPValue получение метрик в формате json
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
-
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
 		return
@@ -139,16 +147,14 @@ func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	pathURL := strings.Split(strings.Trim(req.URL.Path, "/"), "/")
-
-	if len(pathURL) < 4 {
-		res.WriteHeader(http.StatusNotFound)
-		fmt.Fprint(res, "404 page not found")
-		return
-	}
 	name := chi.URLParam(req, "name")
 	myType := chi.URLParam(req, "type")
 	value := chi.URLParam(req, "value")
+
+	if name == "" || myType == "" || value == "" {
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
 
 	err := h.storage.AddMetric(myType, name, value)
 	if err != nil {
@@ -173,42 +179,65 @@ func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 
 func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
+
 	body, err := h.storage.GetAllMetric()
 	if err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Fprint(res, `
+	// Используем strings.Builder для эффективной конкатенации
+	var html strings.Builder
+	html.WriteString(`
     <!DOCTYPE html>
     <html>
     <body>
         <h1>Metrics List</h1>
-		<ul>
+        <ul>
     `)
-	fmt.Fprintf(res, `%s`, body)
-
-	fmt.Fprint(res, `
-	</ul>
+	html.WriteString(body)
+	html.WriteString(`
+        </ul>
     </body>
     </html>
     `)
+
+	fmt.Fprint(res, html.String())
 }
 
 func successResponse(res http.ResponseWriter, hashKey string) {
 	response := map[string]interface{}{
-		"status":  `success`,
+		"status":  "success",
 		"message": "Запрос обработан",
 	}
-	jsonBytes, err := json.Marshal(response)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-	}
+
+	encoder := json.NewEncoder(res)
 	if hashKey != "" {
-		hashSHA256 := hash.CreateHash(hashKey, jsonBytes)
-		res.Header().Set("HashSHA256", hashSHA256)
+		var buf bytes.Buffer
+		if err := encoder.Encode(response); err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		hashSHA256 := hash.CreateHash(hashKey, buf.Bytes())
+		res.Header().Set(headerHashSHA256, hashSHA256)
+		buf.WriteTo(res)
+	} else {
+		encoder.Encode(response)
 	}
-	_, err = res.Write(jsonBytes)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
-	}
+}
+
+func pprofRoutes() http.Handler {
+	r := chi.NewRouter()
+	r.Get("/", pprof.Index)
+	r.Get("/cmdline", pprof.Cmdline)
+	r.Get("/profile", pprof.Profile)
+	r.Get("/symbol", pprof.Symbol)
+	r.Get("/trace", pprof.Trace)
+	r.Handle("/goroutine", pprof.Handler("goroutine"))
+	r.Handle("/heap", pprof.Handler("heap"))
+	r.Handle("/threadcreate", pprof.Handler("threadcreate"))
+	r.Handle("/block", pprof.Handler("block"))
+	r.Handle("/mutex", pprof.Handler("mutex"))
+	r.Handle("/allocs", pprof.Handler("allocs"))
+	return r
 }

@@ -89,6 +89,5 @@ func TestReadMetrics(t *testing.T) {
 			}
 			_ = os.Remove(tt.args.filename)
 		})
-
 	}
 }

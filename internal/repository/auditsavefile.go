@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/AleGaliev/runtimemetrics/internal/audit"
 )
@@ -15,10 +16,14 @@ const (
 type AuditSaveFile struct {
 	path string
 	name string
+	mu   sync.Mutex
 }
 
 func CreateAuditSaveFile(path string) (*AuditSaveFile, error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if path == "" {
+		return nil, fmt.Errorf("path cannot be empty")
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("could not open metrics file: %w", err)
 	}
@@ -28,8 +33,11 @@ func CreateAuditSaveFile(path string) (*AuditSaveFile, error) {
 }
 
 func (a *AuditSaveFile) SendAudit(message audit.Audit) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	data, err := json.Marshal(message)
-	file, err := os.OpenFile(a.path, os.O_WRONLY, 0666)
+	data = append(data, '\n')
+	file, err := os.OpenFile(a.path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o666)
 	if err != nil {
 		return fmt.Errorf("could not open metrics file: %w", err)
 	}
