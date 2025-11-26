@@ -36,6 +36,9 @@ func (a *AuditSaveFile) SendAudit(message audit.Audit) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	data, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
 	data = append(data, '\n')
 	file, err := os.OpenFile(a.path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o666)
 	if err != nil {
