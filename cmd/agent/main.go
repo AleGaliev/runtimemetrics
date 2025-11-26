@@ -36,7 +36,6 @@ func main() {
 	clientCfg := repository.NewClientConfig(logServer, arg.baseURL, arg.hashKey)
 
 	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval, arg.RateLimit)
-
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
 	}

@@ -4,10 +4,12 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sync"
 )
 
 type FileStore struct {
 	filePath string
+	mu       sync.Mutex
 }
 
 func NewFileStore(filePath string) *FileStore {
@@ -15,7 +17,9 @@ func NewFileStore(filePath string) *FileStore {
 }
 
 func (f *FileStore) WriteMetrics(data []byte) error {
-	file, err := os.OpenFile(f.filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	file, err := os.OpenFile(f.filePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 	if err != nil {
 		return fmt.Errorf("could not open metrics file: %w", err)
 	}
@@ -30,7 +34,9 @@ func (f *FileStore) WriteMetrics(data []byte) error {
 }
 
 func (f *FileStore) ReadMetrics() ([]byte, error) {
-	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0666)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	file, err := os.OpenFile(f.filePath, os.O_RDONLY|os.O_CREATE, 0o666)
 	if err != nil {
 		return nil, fmt.Errorf("could not open metrics file: %w", err)
 	}

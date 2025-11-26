@@ -40,7 +40,6 @@ func (l logger) CreateRequestLog(url, method string, timestamp time.Time) {
 		"method", method,
 		"timestamp", duration,
 	)
-
 }
 
 func (l logger) CreateResponseLog(statusCode int, large int64) {

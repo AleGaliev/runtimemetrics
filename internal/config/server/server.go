@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/AleGaliev/runtimemetrics/internal/observer"
+	"github.com/AleGaliev/runtimemetrics/internal/repository"
 )
 
 type ServerConfig struct {
@@ -14,6 +17,8 @@ type ServerConfig struct {
 	Restore         bool
 	DatabaseDSN     string
 	HashKey         string
+	AuditFile       string
+	AuditURL        string
 }
 
 func NewServerConfig() (ServerConfig, error) {
@@ -23,6 +28,8 @@ func NewServerConfig() (ServerConfig, error) {
 	databaseDSN := flag.String("d", "", "database DSN")
 	restore := flag.Bool("r", true, "read file storage metrics")
 	hashKey := flag.String("k", "", "key server encryp/decrypt")
+	auditFile := flag.String("audit-file", "audit.json", "audit file log")
+	auditURL := flag.String("audit-url", "", "audit url")
 	flag.Parse()
 
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
@@ -57,6 +64,16 @@ func NewServerConfig() (ServerConfig, error) {
 	if ok {
 		hashKey = &varHashKey
 	}
+
+	varAuditFile, ok := os.LookupEnv("AUDIT_FILE")
+	if ok {
+		auditFile = &varAuditFile
+	}
+
+	varAuditURL, ok := os.LookupEnv("AUDIT_URL")
+	if ok {
+		auditURL = &varAuditURL
+	}
 	return ServerConfig{
 		AdrHost:         *adrHost,
 		StoreInterval:   *storeInterval,
@@ -64,5 +81,26 @@ func NewServerConfig() (ServerConfig, error) {
 		Restore:         *restore,
 		DatabaseDSN:     *databaseDSN,
 		HashKey:         *hashKey,
+		AuditFile:       *auditFile,
+		AuditURL:        *auditURL,
 	}, nil
+}
+
+func (s ServerConfig) CreateEventAudit() *observer.Event {
+	eventAudit := observer.NewEvent()
+	auditFile, err := repository.CreateAuditSaveFile(s.AuditFile)
+	if err != nil {
+		fmt.Println("Error creating audit file", err)
+	} else {
+		eventAudit.Register(auditFile)
+	}
+
+	auditSender, err := repository.NewAuditSender(s.AuditURL)
+	if err != nil {
+		fmt.Println("Error creating audit sender", err)
+	} else {
+		eventAudit.Register(auditSender)
+	}
+
+	return eventAudit
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
 )
@@ -18,6 +19,7 @@ type Storage struct {
 	Metrics       map[string]models.Metrics
 	StoreInterval int
 	FileStorage   fileStore
+	mu            sync.RWMutex
 }
 
 func CreateStorage(fileStore fileStore, StoreInterval int, restore bool) (*Storage, error) {
@@ -35,6 +37,8 @@ func CreateStorage(fileStore fileStore, StoreInterval int, restore bool) (*Stora
 }
 
 func (s *Storage) AddMetric(myType, name, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	switch myType {
 	case models.Gauge:
 		f, err := strconv.ParseFloat(value, 64)
@@ -100,6 +104,8 @@ func (s *Storage) GetAllMetric() (string, error) {
 }
 
 func (s *Storage) UpdateMetrics(r io.Reader) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data := json.NewDecoder(r)
 	var metricsData models.Metrics
 	if err := data.Decode(&metricsData); err != nil {
@@ -121,6 +127,8 @@ func (s *Storage) UpdateMetrics(r io.Reader) error {
 }
 
 func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data := json.NewDecoder(r)
 	var metricsData []models.Metrics
 	if err := data.Decode(&metricsData); err != nil {
@@ -129,7 +137,6 @@ func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
 	for _, m := range metricsData {
 
 		if m.MType == models.Counter {
-
 			if metric, exists := s.Metrics[m.ID]; exists {
 				*m.Delta += *metric.Delta
 			}
@@ -146,6 +153,8 @@ func (s *Storage) BatchUpdateMetrics(r io.Reader) error {
 }
 
 func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	data := json.NewDecoder(r)
 	var metrics models.Metrics
 	if err := data.Decode(&metrics); err != nil {
@@ -173,7 +182,6 @@ func (s *Storage) ValueMetrics(r io.Reader) ([]byte, bool, error) {
 }
 
 func (s *Storage) SaveMetricToFile() error {
-
 	var metricsSlice []models.Metrics
 
 	for _, metric := range s.Metrics {
@@ -193,7 +201,6 @@ func (s *Storage) SaveMetricToFile() error {
 
 func (s *Storage) ReadMetricInFile() error {
 	dataBytes, err := s.FileStorage.ReadMetrics()
-
 	if err != nil {
 		if err.Error() == "file is empty" {
 			return nil

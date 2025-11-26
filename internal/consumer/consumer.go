@@ -26,7 +26,6 @@ type MetricsConsumer struct {
 }
 
 func NewMetricsConsumer(workers, reportInterval int, rep Rep, retry Retry, metrics chan []models.Metrics) *MetricsConsumer {
-
 	return &MetricsConsumer{
 		metrics:        metrics,
 		workers:        workers,
