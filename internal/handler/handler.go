@@ -16,36 +16,52 @@ import (
 )
 
 const (
-	contentTypeJSON  = "application/json"
-	headerHashSHA256 = "HashSHA256"
+	contentTypeJSON  = "application/json" // Content type for JSON responses
+	headerHashSHA256 = "HashSHA256"       // Header name for SHA256 hash
 )
 
+// metricWriter defines the interface for writing metrics
 type metricWriter interface {
 	AddMetric(myType, name, value string) error
 	UpdateMetrics(r io.Reader) error
 	BatchUpdateMetrics(r io.Reader) error
 }
 
+// metricReader defines the interface for reading metrics
 type metricReader interface {
 	GetMetrics(name string) (string, bool)
 	GetAllMetric() (string, error)
 	ValueMetrics(r io.Reader) ([]byte, bool, error)
 }
 
+// connector defines the interface for database connection
 type connector interface {
 	Connect() error
 }
 
+// Storage combines both reading and writing capabilities for metrics
 type Storage interface {
 	metricWriter
 	metricReader
 }
+
+// MyHandler handles HTTP requests for metrics operations
 type MyHandler struct {
-	storage   Storage
-	connector connector
-	hashKey   string
+	storage   Storage   // Storage for metrics data
+	connector connector // Database connector
+	hashKey   string    // Key for hash calculation
 }
 
+// CreateMyHandler creates and configures a new HTTP handler with routing and middleware
+//
+// Parameters:
+//   - storage: metrics storage implementation
+//   - connector: database connection implementation
+//   - logger: middleware logger
+//   - hashKey: key for hash validation
+//   - eventAudit: event audit observer
+//
+// Returns configured HTTP handler
 func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event) http.Handler {
 	h := &MyHandler{
 		storage:   storage,
@@ -83,6 +99,8 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	return muxWithMiddlewares
 }
 
+// GetPing handles database connectivity check
+// Returns 200 if connection successful, 500 otherwise
 func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 	if err := h.connector.Connect(); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
@@ -92,7 +110,9 @@ func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 	successResponse(res, h.hashKey)
 }
 
-// ServeHTTPUpdate добавление метрики в формате json
+// ServeHTTPUpdate adds a metric in JSON format
+// Expects Content-Type: application/json header
+// Returns 400 for bad requests, 200 for success
 func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
@@ -106,6 +126,9 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 	successResponse(res, h.hashKey)
 }
 
+// ServeHTTPBatchUpdate performs batch update of metrics in JSON format
+// Expects POST method and Content-Type: application/json header
+// Returns 400 for bad requests, 200 for success
 func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost || req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
@@ -118,7 +141,9 @@ func (h MyHandler) ServeHTTPBatchUpdate(res http.ResponseWriter, req *http.Reque
 	successResponse(res, h.hashKey)
 }
 
-// ServeHTTPValue получение метрик в формате json
+// ServeHTTPValue retrieves metric value in JSON format
+// Expects Content-Type: application/json header
+// Returns 400 for bad requests, 404 if metric not found, 200 with metric data for success
 func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Content-Type") != "application/json" {
 		res.WriteHeader(http.StatusBadRequest)
@@ -146,6 +171,9 @@ func (h MyHandler) ServeHTTPValue(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ServeHTTP adds a metric via URL parameters
+// URL format: /update/{type}/{name}/{value}
+// Returns 404 for missing parameters, 400 for invalid data
 func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	name := chi.URLParam(req, "name")
 	myType := chi.URLParam(req, "type")
@@ -163,6 +191,9 @@ func (h MyHandler) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetValue retrieves a metric value by name
+// URL format: /value/{type}/{name}
+// Returns 404 if metric not found, 200 with metric value for success
 func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
 
@@ -177,6 +208,8 @@ func (h MyHandler) GetValue(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(res, "%s", metric)
 }
 
+// ListMetrics returns HTML page with all metrics
+// Returns 500 for internal errors, 200 with HTML content for success
 func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
 
@@ -205,6 +238,8 @@ func (h MyHandler) ListMetrics(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, html.String())
 }
 
+// successResponse sends a standardized success JSON response
+// Includes hash header if hashKey is provided
 func successResponse(res http.ResponseWriter, hashKey string) {
 	response := map[string]interface{}{
 		"status":  "success",
@@ -226,6 +261,8 @@ func successResponse(res http.ResponseWriter, hashKey string) {
 	}
 }
 
+// pprofRoutes configures pprof endpoints for debugging
+// Returns handler with all pprof routes
 func pprofRoutes() http.Handler {
 	r := chi.NewRouter()
 	r.Get("/", pprof.Index)
