@@ -9,9 +9,9 @@ import (
 
 func TestNewServerConfig(t *testing.T) {
 	tests := []struct {
+		env     map[string]string
 		name    string
 		want    ServerConfig
-		env     map[string]string
 		wantErr bool
 	}{
 		{
@@ -23,7 +23,7 @@ func TestNewServerConfig(t *testing.T) {
 				DatabaseDSN:     "",
 				Restore:         true,
 				AuditURL:        "",
-				AuditFile:       "audit.json",
+				AuditFile:       "",
 			},
 			env:     map[string]string{},
 			wantErr: false,

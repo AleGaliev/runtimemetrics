@@ -89,7 +89,7 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	})
 
 	muxWithMiddlewares.Route("/updates/", func(r chi.Router) {
-		r.With(middleware.AuditMiddleware(eventAudit)).
+		r.With(middleware.AuditMiddleware(eventAudit, logger)).
 			Post("/", h.ServeHTTPBatchUpdate)
 	})
 

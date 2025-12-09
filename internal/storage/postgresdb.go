@@ -72,14 +72,17 @@ func (p *PostgresDBStorage) AddMetric(myType, name, value string) error {
 			defer cancel()
 
 			err = p.dbConfig.DB.QueryRowContext(ctx, queryGet, name, metrics.MType).Scan(&deltaOld)
-			if errors.Is(err, sql.ErrNoRows) {
+
+			switch {
+			case err == sql.ErrNoRows:
 				metrics.Delta = &i
-			} else if err != nil {
+			case err != nil:
 				return err
-			} else {
+			default:
 				i += deltaOld
 				metrics.Delta = &i
 			}
+
 			return nil
 		})
 		if err != nil {
@@ -128,7 +131,7 @@ func (p *PostgresDBStorage) GetAllMetric() (string, error) {
 
 	for rows.Next() {
 		metric := models.Metrics{}
-		err := rows.Scan(
+		err = rows.Scan(
 			&metric.ID,
 			&metric.MType,
 			&metric.Delta,

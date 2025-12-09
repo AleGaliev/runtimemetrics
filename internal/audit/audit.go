@@ -7,9 +7,9 @@ import (
 )
 
 type Audit struct {
-	TS        int64    `json:"ts"`
-	Metrics   []string `json:"metrics"`
 	IPAddress string   `json:"ip_address"`
+	Metrics   []string `json:"metrics"`
+	TS        int64    `json:"ts"`
 }
 
 func CreateAuditMessage(ip string, metrics []models.Metrics) Audit {

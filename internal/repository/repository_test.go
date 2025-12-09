@@ -34,8 +34,8 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	}
 
 	type fields struct {
-		Metrics []models.Metrics
 		Client  *http.Client
+		Metrics []models.Metrics
 	}
 	tests := []struct {
 		name   string

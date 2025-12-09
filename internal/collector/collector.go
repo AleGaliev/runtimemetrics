@@ -14,10 +14,10 @@ import (
 )
 
 type MetricsCollector struct {
-	mu           sync.RWMutex
 	metrics      chan []models.Metrics
 	pollCount    int64
 	pollInterval int
+	mu           sync.RWMutex
 }
 
 func NewMetricsCollector(pollInterval int, metrics chan []models.Metrics) *MetricsCollector {

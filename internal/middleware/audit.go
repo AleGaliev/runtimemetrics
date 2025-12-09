@@ -13,7 +13,11 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
 )
 
-func AuditMiddleware(event *observer.Event) func(http.Handler) http.Handler {
+const (
+	serviceNameAuditMiddleware = "AuditMiddleware"
+)
+
+func AuditMiddleware(event *observer.Event, logger Logger) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(res http.ResponseWriter, req *http.Request) {
 			var bodyBytes []byte
@@ -29,7 +33,7 @@ func AuditMiddleware(event *observer.Event) func(http.Handler) http.Handler {
 				// Декодируем JSON
 				if err := json.Unmarshal(bodyBytes, &metricsData); err != nil {
 					// Логируем ошибку, но не прерываем выполнение
-					fmt.Printf("AuditMiddleware: failed to unmarshal JSON: %v", err)
+					logger.CreateErrorLog(serviceNameAuditMiddleware, fmt.Sprintf("Error unmarshalling request body: %s", err))
 				}
 			}
 			ip, _, err := net.SplitHostPort(req.RemoteAddr)

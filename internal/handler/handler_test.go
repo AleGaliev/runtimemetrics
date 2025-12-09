@@ -20,8 +20,8 @@ import (
 
 func TestMyHandler_GetPing(t *testing.T) {
 	tests := []struct {
-		name           string
 		connectError   error
+		name           string
 		expectedStatus int
 	}{
 		{
@@ -68,12 +68,12 @@ func TestMyHandler_ServeHTTPUpdate(t *testing.T) {
 	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
+		updateError    error
 		name           string
 		body           string
-		updateError    error
-		expectedStatus int
 		contentType    string
 		method         string
+		expectedStatus int
 	}{
 		{
 			name:           "successful update",
@@ -139,9 +139,9 @@ func TestMyHandler_ServeHTTPBatchUpdate(t *testing.T) {
 	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
+		batchError     error
 		name           string
 		body           string
-		batchError     error
 		expectedStatus int
 	}{
 		{
@@ -183,12 +183,12 @@ func TestMyHandler_ServeHTTPValue(t *testing.T) {
 	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
+		valueError     error
 		name           string
 		body           string
 		metrics        []byte
-		found          bool
-		valueError     error
 		expectedStatus int
+		found          bool
 	}{
 		{
 			name:           "successful get value",
@@ -245,9 +245,9 @@ func TestMyHandler_ServeHTTP(t *testing.T) {
 	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
+		addMetricError error
 		name           string
 		url            string
-		addMetricError error
 		expectedStatus int
 	}{
 		{
@@ -354,9 +354,9 @@ func TestMyHandler_ListMetrics(t *testing.T) {
 	mockConnector := mocks.NewMockconnector(ctrl)
 
 	tests := []struct {
+		getAllError    error
 		name           string
 		allMetrics     string
-		getAllError    error
 		expectedStatus int
 	}{
 		{
@@ -407,9 +407,3 @@ func TestSuccessResponse(t *testing.T) {
 	assert.Equal(t, "success", response["status"])
 	assert.Equal(t, "Запрос обработан", response["message"])
 }
-
-// Mock logger для тестов
-type mockLogger struct{}
-
-func (m *mockLogger) Printf(format string, v ...interface{}) {}
-func (m *mockLogger) Println(v ...interface{})               {}

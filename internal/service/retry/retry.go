@@ -8,8 +8,8 @@ import (
 )
 
 type Retry struct {
-	RetryCount int
 	Interval   []time.Duration
+	RetryCount int
 }
 
 func CreateRetry() Retry {

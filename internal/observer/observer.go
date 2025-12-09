@@ -5,10 +5,10 @@ import (
 )
 
 // интерфейсы
-type Publisher interface {
-	register(Observer)
-	deregister(Observer)
-	notify(audit.Audit)
+type publisher interface {
+	Register(Observer)
+	Deregister(Observer)
+	Notify(audit.Audit)
 }
 
 type Observer interface {

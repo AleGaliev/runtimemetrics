@@ -7,6 +7,7 @@ import (
 
 type Logger interface {
 	CreateRequestLog(url, method string, timestamp time.Time)
+	CreateErrorLog(service, message string)
 }
 
 func MiddlewareHandlerLogger(logger Logger) func(http.Handler) http.Handler {

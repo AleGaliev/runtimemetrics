@@ -24,10 +24,10 @@ func TestStorage_AddMetric(t *testing.T) {
 		value  string
 	}
 	tests := []struct {
-		name    string
-		args    args
 		parent  fields
 		result  fields
+		args    args
+		name    string
 		wantErr bool
 	}{
 		{

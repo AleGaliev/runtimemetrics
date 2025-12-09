@@ -16,16 +16,16 @@ type fileStore interface {
 }
 
 type Storage struct {
+	FileStorage   fileStore
 	Metrics       map[string]models.Metrics
 	StoreInterval int
-	FileStorage   fileStore
 	mu            sync.RWMutex
 }
 
-func CreateStorage(fileStore fileStore, StoreInterval int, restore bool) (*Storage, error) {
+func CreateStorage(fileStore fileStore, storeInterval int, restore bool) (*Storage, error) {
 	storage := &Storage{
 		Metrics:       make(map[string]models.Metrics),
-		StoreInterval: StoreInterval,
+		StoreInterval: storeInterval,
 		FileStorage:   fileStore,
 	}
 	if restore {

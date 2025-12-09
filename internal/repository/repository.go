@@ -48,10 +48,10 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	if _, err := gz.Write(jsonMetrics); err != nil {
+	if _, err = gz.Write(jsonMetrics); err != nil {
 		return fmt.Errorf("could not gzip metrics: %v", err)
 	}
-	if err := gz.Close(); err != nil {
+	if err = gz.Close(); err != nil {
 		return fmt.Errorf("could not gzip metrics: %v", err)
 	}
 

@@ -26,20 +26,7 @@ func main() {
 		panic(errors.Unwrap(err))
 	}
 
-	eventAudit := observer.NewEvent()
-
-	auditFile, err := repository.CreateAuditSaveFile(serverConf.AuditFile)
-	if err != nil {
-		fmt.Println("Error creating audit file", err)
-	} else {
-		eventAudit.Register(auditFile)
-	}
-	auditSender, err := repository.NewAuditSender(serverConf.AuditURL)
-	if err != nil {
-		fmt.Println("Error creating audit sender", err)
-	} else {
-		eventAudit.Register(auditSender)
-	}
+	eventAudit := createEventAudit(serverConf.AuditFile, serverConf.AuditURL)
 
 	memStorage, err := srv.NewServerMemStorage(serverConf)
 	if err != nil {
@@ -53,4 +40,23 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
+}
+
+func createEventAudit(auditFile, auditURL string) *observer.Event {
+	eventAudit := observer.NewEvent()
+	eventAuditFile, err := repository.CreateAuditSaveFile(auditFile)
+	if err != nil {
+		fmt.Println("Error creating audit file", err)
+	} else {
+		eventAudit.Register(eventAuditFile)
+	}
+
+	eventAuditSender, err := repository.NewAuditSender(auditURL)
+	if err != nil {
+		fmt.Println("Error creating audit sender", err)
+	} else {
+		eventAudit.Register(eventAuditSender)
+	}
+
+	return eventAudit
 }

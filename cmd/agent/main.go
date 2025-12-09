@@ -17,9 +17,9 @@ import (
 
 type flagsAgent struct {
 	baseURL        string
+	hashKey        string
 	pollInterval   int
 	reportInterval int
-	hashKey        string
 	RateLimit      int
 }
 

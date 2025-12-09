@@ -16,11 +16,11 @@ type Rep interface {
 type AgentConfig struct {
 	Rep            Rep
 	BaseURL        *string
+	retry          retry.Retry
 	pollCount      int64
 	counter        int
 	pollInterval   int
 	reportInterval int
-	retry          retry.Retry
 	workers        int
 }
 
