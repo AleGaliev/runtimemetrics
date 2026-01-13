@@ -16,6 +16,8 @@ import (
 type logger interface {
 	CreateResponseLog(statusCode int, large int64)
 }
+
+//generate:reset
 type HTTPSendler struct {
 	client *http.Client
 	// baseURL *string

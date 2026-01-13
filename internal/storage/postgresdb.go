@@ -39,6 +39,7 @@ const (
 	queryGetAll = `SELECT id, mtype, delta, value, hash FROM metrics`
 )
 
+//generate:reset
 type PostgresDBStorage struct {
 	dbConfig db.PostgresDB
 	retry    retry.Retry

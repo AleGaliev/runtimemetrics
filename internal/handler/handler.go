@@ -46,6 +46,8 @@ type Storage interface {
 }
 
 // MyHandler handles HTTP requests for metrics operations
+//
+//generate:reset
 type MyHandler struct {
 	storage   Storage   // Storage for metrics data
 	connector connector // Database connector

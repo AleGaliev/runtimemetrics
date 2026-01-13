@@ -17,6 +17,7 @@ const (
 	auditSenderName = "auditSender"
 )
 
+//generate:reset
 type AuditSender struct {
 	client http.Client
 	url    url.URL
