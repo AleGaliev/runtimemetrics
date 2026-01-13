@@ -15,6 +15,13 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	serviceName  string = "agent"
+)
+
 type flagsAgent struct {
 	baseURL        string
 	hashKey        string
@@ -28,6 +35,8 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
+
+	logServer.CreateVersionLog(serviceName, buildVersion, buildDate, buildCommit)
 
 	arg, err := initConfig()
 	if err != nil {

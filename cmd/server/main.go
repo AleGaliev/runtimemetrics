@@ -15,6 +15,13 @@ import (
 	srv "github.com/AleGaliev/runtimemetrics/internal/server"
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	serviceName  string = "server"
+)
+
 func main() {
 	serverConf, err := server.NewServerConfig()
 	if err != nil {
@@ -25,6 +32,8 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
+
+	logServer.CreateVersionLog(serviceName, buildVersion, buildDate, buildCommit)
 
 	eventAudit := createEventAudit(serverConf.AuditFile, serverConf.AuditURL)
 

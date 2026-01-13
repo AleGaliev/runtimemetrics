@@ -56,3 +56,12 @@ func (l logger) CreateErrorLog(service, message string) {
 		"message", message,
 	)
 }
+
+func (l logger) CreateVersionLog(service, buildVersion, buildDate, buildCommit string) {
+	l.logger.Errorw(
+		service,
+		"Build version: ", buildVersion,
+		"Build date: ", buildDate,
+		"Build commit: ", buildCommit,
+	)
+}
