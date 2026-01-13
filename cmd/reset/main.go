@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,6 +80,9 @@ func main() {
 		os.Exit(1)
 	}
 	tmpl, err := template.New("resetMethod").Parse(tmplStr)
+	if err != nil {
+		log.Fatal(err)
+	}
 	structsList := convertInfoPackageInPackage(structs)
 
 	for _, structs := range structsList {
@@ -95,18 +99,18 @@ func main() {
 			err = tmpl.Execute(&buf, s)
 
 			if err != nil {
-				fmt.Println(err)
+				log.Fatal(err)
 			}
 
 		}
 		file, err := os.OpenFile(newPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o666)
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 		}
 		defer file.Close()
 		_, err = file.Write(buf.Bytes())
 		if err != nil {
-			fmt.Println(err)
+			log.Fatal(err)
 		}
 	}
 
