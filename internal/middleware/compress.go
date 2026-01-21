@@ -17,37 +17,40 @@ func (w GzipResponseWriter) Write(b []byte) (int, error) {
 	return w.Writer.Write(b)
 }
 
-func GzipMiddlewareHandler(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
-			// если gzip не поддерживается, передаём управление
-			// дальше без изменений
-			next.ServeHTTP(res, req)
-			return
-		}
-		if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
-			dgz, err := gzip.NewReader(req.Body)
-			if err != nil {
-				res.WriteHeader(http.StatusBadRequest)
+func GzipMiddlewareHandler() func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		fn := func(res http.ResponseWriter, req *http.Request) {
+			if !strings.Contains(req.Header.Get("Accept-Encoding"), "gzip") {
+				// если gzip не поддерживается, передаём управление
+				// дальше без изменений
+				h.ServeHTTP(res, req)
 				return
 			}
-			req.Body = struct {
-				io.Reader
-				io.Closer
-			}{dgz, req.Body}
-			defer dgz.Close()
-		}
+			if strings.Contains(req.Header.Get("Content-Encoding"), "gzip") {
+				dgz, err := gzip.NewReader(req.Body)
+				if err != nil {
+					res.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				req.Body = struct {
+					io.Reader
+					io.Closer
+				}{dgz, req.Body}
+				defer dgz.Close()
+			}
 
-		// создаём gzip.Writer поверх текущего w
-		gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
-		if err != nil {
-			io.WriteString(res, err.Error())
-			return
-		}
-		defer gz.Close()
+			// создаём gzip.Writer поверх текущего w
+			gz, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+			if err != nil {
+				io.WriteString(res, err.Error())
+				return
+			}
+			defer gz.Close()
 
-		res.Header().Set("Content-Encoding", "gzip")
-		// передаём обработчику страницы переменную типа gzipWriter для вывода данных
-		next.ServeHTTP(GzipResponseWriter{ResponseWriter: res, Writer: gz}, req)
-	})
+			res.Header().Set("Content-Encoding", "gzip")
+			// передаём обработчику страницы переменную типа gzipWriter для вывода данных
+			h.ServeHTTP(GzipResponseWriter{ResponseWriter: res, Writer: gz}, req)
+		}
+		return http.HandlerFunc(fn)
+	}
 }

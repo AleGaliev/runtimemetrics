@@ -15,11 +15,18 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
 
+var (
+	buildVersion string = "N/A"
+	buildDate    string = "N/A"
+	buildCommit  string = "N/A"
+	serviceName  string = "agent"
+)
+
 type flagsAgent struct {
 	baseURL        string
+	hashKey        string
 	pollInterval   int
 	reportInterval int
-	hashKey        string
 	RateLimit      int
 }
 
@@ -29,6 +36,8 @@ func main() {
 		panic(errors.Unwrap(err))
 	}
 
+	logServer.CreateVersionLog(serviceName, buildVersion, buildDate, buildCommit)
+
 	arg, err := initConfig()
 	if err != nil {
 		panic(errors.Unwrap(err))
@@ -36,7 +45,6 @@ func main() {
 	clientCfg := repository.NewClientConfig(logServer, arg.baseURL, arg.hashKey)
 
 	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval, arg.RateLimit)
-
 	if err != nil {
 		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
 	}

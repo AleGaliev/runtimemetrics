@@ -36,8 +36,8 @@ type PostgresDB struct {
 	DefaultTimeout time.Duration
 }
 
-func NewPostgresDB(PostgresURL string) (PostgresDB, error) {
-	db, err := sql.Open("pgx", PostgresURL)
+func NewPostgresDB(postgresURL string) (PostgresDB, error) {
+	db, err := sql.Open("pgx", postgresURL)
 	if err != nil {
 		return PostgresDB{}, err
 	}

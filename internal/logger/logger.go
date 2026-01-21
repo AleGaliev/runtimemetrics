@@ -40,7 +40,6 @@ func (l logger) CreateRequestLog(url, method string, timestamp time.Time) {
 		"method", method,
 		"timestamp", duration,
 	)
-
 }
 
 func (l logger) CreateResponseLog(statusCode int, large int64) {
@@ -48,5 +47,21 @@ func (l logger) CreateResponseLog(statusCode int, large int64) {
 		"message",
 		"statusCode", statusCode,
 		"large", large,
+	)
+}
+
+func (l logger) CreateErrorLog(service, message string) {
+	l.logger.Errorw(
+		service,
+		"message", message,
+	)
+}
+
+func (l logger) CreateVersionLog(service, buildVersion, buildDate, buildCommit string) {
+	l.logger.Errorw(
+		service,
+		"Build version: ", buildVersion,
+		"Build date: ", buildDate,
+		"Build commit: ", buildCommit,
 	)
 }

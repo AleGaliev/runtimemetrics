@@ -23,11 +23,11 @@ func TestStorage_AddMetric(t *testing.T) {
 		name   string
 		value  string
 	}
-	var tests = []struct {
-		name    string
-		args    args
+	tests := []struct {
 		parent  fields
 		result  fields
+		args    args
+		name    string
 		wantErr bool
 	}{
 		{
@@ -156,7 +156,7 @@ func TestStorage_GetAllMetric(t *testing.T) {
 		}
 	)
 
-	var tests = []struct {
+	tests := []struct {
 		name string
 		want string
 	}{

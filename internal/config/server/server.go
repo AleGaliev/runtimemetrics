@@ -9,11 +9,13 @@ import (
 
 type ServerConfig struct {
 	AdrHost         string
-	StoreInterval   int
 	FileStoragePath string
-	Restore         bool
 	DatabaseDSN     string
 	HashKey         string
+	AuditFile       string
+	AuditURL        string
+	StoreInterval   int
+	Restore         bool
 }
 
 func NewServerConfig() (ServerConfig, error) {
@@ -23,6 +25,8 @@ func NewServerConfig() (ServerConfig, error) {
 	databaseDSN := flag.String("d", "", "database DSN")
 	restore := flag.Bool("r", true, "read file storage metrics")
 	hashKey := flag.String("k", "", "key server encryp/decrypt")
+	auditFile := flag.String("audit-file", "", "audit file log")
+	auditURL := flag.String("audit-url", "", "audit url")
 	flag.Parse()
 
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
@@ -57,6 +61,16 @@ func NewServerConfig() (ServerConfig, error) {
 	if ok {
 		hashKey = &varHashKey
 	}
+
+	varAuditFile, ok := os.LookupEnv("AUDIT_FILE")
+	if ok {
+		auditFile = &varAuditFile
+	}
+
+	varAuditURL, ok := os.LookupEnv("AUDIT_URL")
+	if ok {
+		auditURL = &varAuditURL
+	}
 	return ServerConfig{
 		AdrHost:         *adrHost,
 		StoreInterval:   *storeInterval,
@@ -64,5 +78,7 @@ func NewServerConfig() (ServerConfig, error) {
 		Restore:         *restore,
 		DatabaseDSN:     *databaseDSN,
 		HashKey:         *hashKey,
+		AuditFile:       *auditFile,
+		AuditURL:        *auditURL,
 	}, nil
 }

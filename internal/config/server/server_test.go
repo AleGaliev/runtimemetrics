@@ -2,7 +2,6 @@ package server
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -10,9 +9,9 @@ import (
 
 func TestNewServerConfig(t *testing.T) {
 	tests := []struct {
+		env     map[string]string
 		name    string
 		want    ServerConfig
-		env     map[string]string
 		wantErr bool
 	}{
 		{
@@ -23,6 +22,8 @@ func TestNewServerConfig(t *testing.T) {
 				FileStoragePath: "storage.json",
 				DatabaseDSN:     "",
 				Restore:         true,
+				AuditURL:        "",
+				AuditFile:       "",
 			},
 			env:     map[string]string{},
 			wantErr: false,
@@ -34,7 +35,6 @@ func TestNewServerConfig(t *testing.T) {
 				os.Setenv(envKey, envValue)
 			}
 			flag.Parse()
-			fmt.Println(os.Getenv("ADDRESS"))
 			got, err := NewServerConfig()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewServerConfig() error = %v, wantErr %v", err, tt.wantErr)

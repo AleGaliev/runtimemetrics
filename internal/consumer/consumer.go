@@ -18,15 +18,14 @@ type Retry interface {
 }
 
 type MetricsConsumer struct {
+	rep            Rep
+	Retry          Retry
 	metrics        chan []models.Metrics
 	workers        int
-	rep            Rep
 	reportInterval int
-	Retry          Retry
 }
 
 func NewMetricsConsumer(workers, reportInterval int, rep Rep, retry Retry, metrics chan []models.Metrics) *MetricsConsumer {
-
 	return &MetricsConsumer{
 		metrics:        metrics,
 		workers:        workers,

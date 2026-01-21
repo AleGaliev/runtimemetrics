@@ -43,7 +43,6 @@ func NewServerMemStorage(serverConf server.ServerConfig) (ServerMemStorage, erro
 		}, nil
 	}
 	dbConfig, err := db.NewPostgresDB(serverConf.DatabaseDSN)
-
 	if err != nil {
 		return ServerMemStorage{}, err
 	}

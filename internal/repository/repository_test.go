@@ -34,29 +34,29 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 	}
 
 	type fields struct {
-		Metrics []models.Metrics
 		Client  *http.Client
+		Metrics []models.Metrics
 	}
 	tests := []struct {
 		name   string
 		fields fields
-	}{{
-		name: "positive",
-		fields: fields{
-			Metrics: []models.Metrics{
-				{ID: "Alloc", MType: models.Gauge, Value: &allocValue},
-				{ID: "BuckHashSys", MType: models.Gauge, Value: &buckHashValue},
-				{ID: "Frees", MType: models.Gauge, Value: &freesValue},
+	}{
+		{
+			name: "positive",
+			fields: fields{
+				Metrics: []models.Metrics{
+					{ID: "Alloc", MType: models.Gauge, Value: &allocValue},
+					{ID: "BuckHashSys", MType: models.Gauge, Value: &buckHashValue},
+					{ID: "Frees", MType: models.Gauge, Value: &freesValue},
+				},
+				Client: server.Client(),
 			},
-			Client: server.Client(),
 		},
-	},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			clientCfg.SendMetricsRequest(tt.fields.Metrics)
-
 		})
 	}
 }

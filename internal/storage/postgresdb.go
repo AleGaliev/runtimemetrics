@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"sync"
 
 	"github.com/AleGaliev/runtimemetrics/internal/config/db"
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
@@ -38,9 +39,11 @@ const (
 	queryGetAll = `SELECT id, mtype, delta, value, hash FROM metrics`
 )
 
+//generate:reset
 type PostgresDBStorage struct {
 	dbConfig db.PostgresDB
 	retry    retry.Retry
+	mu       sync.Mutex
 }
 
 func NewPostgresDBStorage(db db.PostgresDB, retry retry.Retry) *PostgresDBStorage {
@@ -66,19 +69,21 @@ func (p *PostgresDBStorage) AddMetric(myType, name, value string) error {
 		}
 		var deltaOld int64
 		err = p.retry.RetryConnection(func() error {
-
 			ctx, cancel := context.WithTimeout(context.Background(), p.dbConfig.DefaultTimeout)
 			defer cancel()
 
 			err = p.dbConfig.DB.QueryRowContext(ctx, queryGet, name, metrics.MType).Scan(&deltaOld)
-			if errors.Is(err, sql.ErrNoRows) {
+
+			switch {
+			case err == sql.ErrNoRows:
 				metrics.Delta = &i
-			} else if err != nil {
+			case err != nil:
 				return err
-			} else {
+			default:
 				i += deltaOld
 				metrics.Delta = &i
 			}
+
 			return nil
 		})
 		if err != nil {
@@ -95,7 +100,6 @@ func (p *PostgresDBStorage) AddMetric(myType, name, value string) error {
 		_, err := p.dbConfig.DB.ExecContext(ctx, queryUpgrad, metrics.ID, metrics.MType, metrics.Delta, metrics.Value, metrics.Hash)
 		return err
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to add metric: %w", err)
 	}
@@ -128,7 +132,7 @@ func (p *PostgresDBStorage) GetAllMetric() (string, error) {
 
 	for rows.Next() {
 		metric := models.Metrics{}
-		err := rows.Scan(
+		err = rows.Scan(
 			&metric.ID,
 			&metric.MType,
 			&metric.Delta,
@@ -152,8 +156,8 @@ func (p *PostgresDBStorage) GetAllMetric() (string, error) {
 
 	return result, nil
 }
-func (p *PostgresDBStorage) UpdateMetrics(r io.Reader) error {
 
+func (p *PostgresDBStorage) UpdateMetrics(r io.Reader) error {
 	data := json.NewDecoder(r)
 	var metricsData models.Metrics
 	if err := data.Decode(&metricsData); err != nil {
@@ -173,16 +177,23 @@ func (p *PostgresDBStorage) UpdateMetrics(r io.Reader) error {
 }
 
 func (p *PostgresDBStorage) BatchUpdateMetrics(r io.Reader) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	data := json.NewDecoder(r)
 	var metricsData []models.Metrics
 	if err := data.Decode(&metricsData); err != nil {
 		return fmt.Errorf("could not decode metrics: %v", err)
 	}
+
+	for i := range metricsData {
+		if err := p.counterManipulation(&metricsData[i]); err != nil {
+			return fmt.Errorf("could not process metric %s: %w", metricsData[i].ID, err)
+		}
+	}
+
 	metrics := make(map[string]models.Metrics)
 	for _, m := range metricsData {
-
 		if m.MType == models.Counter {
-
 			if metricCounter, exists := metrics[m.ID]; exists {
 				*m.Delta += *metricCounter.Delta
 			}
@@ -195,6 +206,7 @@ func (p *PostgresDBStorage) BatchUpdateMetrics(r io.Reader) error {
 		return fmt.Errorf("could not start a transaction: %w", err)
 	}
 	defer tx.Rollback()
+
 	stmt, err := tx.Prepare(queryUpgrad)
 	if err != nil {
 		return fmt.Errorf("could not prepare statement: %w", err)
@@ -205,11 +217,7 @@ func (p *PostgresDBStorage) BatchUpdateMetrics(r io.Reader) error {
 	defer cancel()
 
 	for _, m := range metrics {
-		if err := p.counterManipulation(&m); err != nil {
-			return fmt.Errorf("could not add metric: %w", err)
-		}
 		_, err := stmt.ExecContext(ctx, m.ID, m.MType, m.Delta, m.Value, m.Hash)
-
 		if err != nil {
 			return fmt.Errorf("exec statement for %s: %w", m.ID, err)
 		}
