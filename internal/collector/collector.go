@@ -67,6 +67,7 @@ func (mc *MetricsCollector) CollectMetrics(ctx context.Context) {
 	}()
 
 	<-ctx.Done()
+	close(mc.metrics)
 }
 
 func collectSystemMetrics() ([]models.Metrics, error) {

@@ -17,28 +17,64 @@ type logger interface {
 	CreateResponseLog(statusCode int, large int64)
 }
 
+type cripto interface {
+	Encrypt(data []byte) ([]byte, error)
+}
+
 //generate:reset
 type HTTPSendler struct {
-	client *http.Client
-	// baseURL *string
-	// shema   string
+	client  *http.Client
 	url     *url.URL
 	logger  logger
+	cripto  cripto
 	keyHash string
 }
 
-func NewClientConfig(logger logger, baseURL, keyHash string) *HTTPSendler {
-	return &HTTPSendler{
+type Option func(*HTTPSendler)
+
+func NewClientConfig(opts ...Option) *HTTPSendler {
+	clientConfig := &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
-		url: &url.URL{
+		url:     &url.URL{},
+		logger:  nil,
+		keyHash: "",
+		cripto:  nil,
+	}
+
+	for _, opt := range opts {
+		opt(clientConfig)
+	}
+
+	return clientConfig
+}
+
+func WithCripto(cripto cripto) Option {
+	return func(h *HTTPSendler) {
+		h.cripto = cripto
+	}
+}
+
+func WithURL(baseURL string) Option {
+	return func(h *HTTPSendler) {
+		h.url = &url.URL{
 			Scheme: "http",
 			Host:   baseURL,
 			Path:   "updates/",
-		},
-		logger:  logger,
-		keyHash: keyHash,
+		}
+	}
+}
+
+func WithKeyHash(keyHash string) Option {
+	return func(h *HTTPSendler) {
+		h.keyHash = keyHash
+	}
+}
+
+func WithLogger(logger logger) Option {
+	return func(h *HTTPSendler) {
+		h.logger = logger
 	}
 }
 
@@ -47,7 +83,10 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("could not marshal metrics: %v", err)
 	}
-
+	jsonMetrics, err = h.cripto.Encrypt(jsonMetrics)
+	if err != nil {
+		return fmt.Errorf("could not encrypt metrics: %v", err)
+	}
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
 	if _, err = gz.Write(jsonMetrics); err != nil {

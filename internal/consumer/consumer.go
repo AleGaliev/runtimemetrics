@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
@@ -40,8 +41,12 @@ func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
 	defer ticker.Stop()
 	errCh := make(chan error, 1)
 	jobs := make(chan []models.Metrics, 100)
+	wg := &sync.WaitGroup{}
+
 	for w := 1; w <= mc.workers; w++ {
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			if err := mc.ConsumerWorker(jobs); err != nil {
 				errCh <- fmt.Errorf("consumer worker failed: %w", err)
 				log.Printf("Consumer worker failed: %v", err)
@@ -52,6 +57,10 @@ func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
+				for metrics := range mc.metrics {
+					jobs <- metrics
+				}
+				close(jobs)
 				return
 			case <-ticker.C:
 				metrics := collectInitialMetrics(mc.metrics)
@@ -64,6 +73,7 @@ func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		wg.Wait()
 		return nil
 	case err := <-errCh:
 		return err

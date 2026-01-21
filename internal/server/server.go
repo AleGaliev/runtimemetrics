@@ -2,12 +2,18 @@ package server
 
 import (
 	"errors"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/AleGaliev/runtimemetrics/internal/config/db"
 	"github.com/AleGaliev/runtimemetrics/internal/config/server"
 	"github.com/AleGaliev/runtimemetrics/internal/filestore"
 	"github.com/AleGaliev/runtimemetrics/internal/handler"
+	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/internal/observer"
+	"github.com/AleGaliev/runtimemetrics/internal/repository"
+	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 	"github.com/AleGaliev/runtimemetrics/internal/storage"
 )
@@ -57,4 +63,77 @@ func NewServerMemStorage(serverConf server.ServerConfig) (ServerMemStorage, erro
 		MemStorage: dbMemStorage,
 		DBConfig:   dbConfig,
 	}, nil
+}
+
+type Server struct {
+	ServerConf server.ServerConfig
+	LogServer  logger.Logger
+	EventAudit *observer.Event
+	MemStorage ServerMemStorage
+	CryptoKey  *cripto.Cripto
+	Server     *http.Server
+}
+
+func New() (Server, error) {
+	serverConf, err := server.NewServerConfig()
+	if err != nil {
+		return Server{}, err
+	}
+
+	logServer, err := logger.CreateLogger()
+	if err != nil {
+		return Server{}, err
+	}
+
+	eventAudit := createEventAudit(serverConf.AuditFile, serverConf.AuditURL)
+
+	memStorage, err := NewServerMemStorage(serverConf)
+	if err != nil {
+		return Server{}, err
+	}
+
+	cryptoKey, err := cripto.NewCripto(serverConf.CryptoKey, "")
+	if err != nil {
+		return Server{}, err
+	}
+
+	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer, serverConf.HashKey, eventAudit, cryptoKey)
+
+	server := &http.Server{
+		Addr:    serverConf.AdrHost,
+		Handler: r,
+	}
+
+	return Server{
+		ServerConf: serverConf,
+		LogServer:  logServer,
+		EventAudit: eventAudit,
+		MemStorage: memStorage,
+		CryptoKey:  cryptoKey,
+		Server:     server,
+	}, nil
+
+}
+
+func createEventAudit(auditFile, auditURL string) *observer.Event {
+	eventAudit := observer.NewEvent()
+	eventAuditFile, err := repository.CreateAuditSaveFile(auditFile)
+	if err != nil {
+		fmt.Println("Error creating audit file", err)
+	} else {
+		eventAudit.Register(eventAuditFile)
+	}
+
+	eventAuditSender, err := repository.NewAuditSender(auditURL)
+	if err != nil {
+		fmt.Println("Error creating audit sender", err)
+	} else {
+		eventAudit.Register(eventAuditSender)
+	}
+
+	return eventAudit
+}
+
+func (s *Server) Close() {
+	s.MemStorage.DBConfig.Close()
 }

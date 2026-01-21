@@ -38,7 +38,6 @@ func AuditMiddleware(event *observer.Event, logger Logger) func(http.Handler) ht
 			}
 			ip, _, err := net.SplitHostPort(req.RemoteAddr)
 			if err != nil {
-				fmt.Printf("AuditMiddleware: failed to parse remote address: %v", err)
 				ip = req.RemoteAddr
 			}
 

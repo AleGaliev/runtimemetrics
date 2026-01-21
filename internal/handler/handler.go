@@ -11,6 +11,7 @@ import (
 
 	"github.com/AleGaliev/runtimemetrics/internal/middleware"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
+	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 	"github.com/go-chi/chi/v5"
 )
@@ -64,7 +65,7 @@ type MyHandler struct {
 //   - eventAudit: event audit observer
 //
 // Returns configured HTTP handler
-func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event) http.Handler {
+func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event, cryptoKey *cripto.Cripto) http.Handler {
 	h := &MyHandler{
 		storage:   storage,
 		connector: connector,
@@ -75,6 +76,7 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 	muxWithMiddlewares := mux.With(
 		middleware.MiddlewareHandlerLogger(logger),
 		middleware.GzipMiddlewareHandler(),
+		middleware.MiddlewareDecrypt(cryptoKey),
 		middleware.MetricValidateMiddleware(hashKey),
 	)
 	muxWithMiddlewares.Route("/", func(r chi.Router) {
@@ -106,7 +108,6 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 func (h MyHandler) GetPing(res http.ResponseWriter, _ *http.Request) {
 	if err := h.connector.Connect(); err != nil {
 		res.WriteHeader(http.StatusInternalServerError)
-		fmt.Println(err)
 		return
 	}
 	successResponse(res, h.hashKey)
@@ -121,7 +122,6 @@ func (h MyHandler) ServeHTTPUpdate(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err := h.storage.UpdateMetrics(req.Body); err != nil {
-		fmt.Println(err)
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
