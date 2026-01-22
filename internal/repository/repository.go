@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -109,6 +110,7 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept-Encoding", "gzip")
+	request.Header.Set("X-Real-IP", getLocalIP())
 
 	response, err := h.MiddlewareLoggerDo(request)
 	if err != nil {
@@ -130,4 +132,20 @@ func (h HTTPSendler) MiddlewareLoggerDo(req *http.Request) (*http.Response, erro
 	}
 	h.logger.CreateResponseLog(response.StatusCode, response.ContentLength)
 	return response, nil
+}
+
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "127.0.0.1"
+	}
+
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return "127.0.0.1"
 }

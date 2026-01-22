@@ -19,6 +19,7 @@ var (
 	defaultCryptoKey       string = ""
 	defaultStoreInterval   int    = 2
 	defaultRestore         bool   = true
+	defaultTrustedSubnet   string = ""
 )
 
 type ServerConfig struct {
@@ -31,6 +32,7 @@ type ServerConfig struct {
 	CryptoKey       string `json:"crypto_key"`
 	StoreInterval   int    `json:"store_interval"`
 	Restore         bool   `json:"restore"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func NewServerConfig() (ServerConfig, error) {
@@ -44,6 +46,7 @@ func NewServerConfig() (ServerConfig, error) {
 	auditURL := flag.String("audit-url", defaultAuditURL, "audit url")
 	cryptoKey := flag.String("crypto-key", defaultCryptoKey, "key agent encryption")
 	fileConfig := flag.String("c", "", "config file")
+	trustedSubnet := flag.String("t", "", "trusted subnet")
 	flag.Parse()
 
 	varCryptoKey, ok := os.LookupEnv("CRYPTO_KEY")
@@ -93,6 +96,10 @@ func NewServerConfig() (ServerConfig, error) {
 	if ok {
 		auditURL = &varAuditURL
 	}
+	varTrustedSubnet, ok := os.LookupEnv("TRUSTED_SUBNET")
+	if ok {
+		trustedSubnet = &varTrustedSubnet
+	}
 
 	resultServerConfig := ServerConfig{
 		AdrHost:         *adrHost,
@@ -104,6 +111,7 @@ func NewServerConfig() (ServerConfig, error) {
 		HashKey:         *hashKey,
 		AuditFile:       *auditFile,
 		AuditURL:        *auditURL,
+		TrustedSubnet:   *trustedSubnet,
 	}
 
 	if *fileConfig != "" {
@@ -163,5 +171,8 @@ func (flags *ServerConfig) convertFlagsResult(flagsInFile ServerConfig) {
 	}
 	if flags.Restore == defaultRestore {
 		flags.Restore = flagsInFile.Restore
+	}
+	if flags.TrustedSubnet == defaultTrustedSubnet {
+		flags.TrustedSubnet = flagsInFile.TrustedSubnet
 	}
 }

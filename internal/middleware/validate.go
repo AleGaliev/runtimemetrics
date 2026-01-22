@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
@@ -59,7 +60,6 @@ func MetricValidateMiddleware(keyHash string) func(http.Handler) http.Handler {
 			if err := data.Decode(&metrics); err == nil {
 				if err := MetricValidate(metrics); err != nil {
 					res.WriteHeader(http.StatusBadRequest)
-					fmt.Println(err)
 					return
 				}
 			} else {
@@ -97,4 +97,39 @@ func MetricValidate(metric models.Metrics) error {
 	}
 
 	return nil
+}
+func IPValidateMiddleware(cidr string) func(http.Handler) http.Handler {
+	return func(h http.Handler) http.Handler {
+		fn := func(res http.ResponseWriter, req *http.Request) {
+			if cidr != "" {
+				ip := req.Header.Get("X-Real-IP")
+				if ip == "" {
+					res.WriteHeader(http.StatusForbidden)
+				}
+				isInRange, err := IsIPInCIDR(ip, cidr)
+				if err != nil {
+					res.WriteHeader(http.StatusForbidden)
+					return
+				}
+				if !isInRange {
+					res.WriteHeader(http.StatusForbidden)
+				}
+			}
+		}
+		return http.HandlerFunc(fn)
+	}
+}
+
+func IsIPInCIDR(ipStr, cidrStr string) (bool, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("ip adress not correct: %s", ipStr)
+	}
+
+	_, ipNet, err := net.ParseCIDR(cidrStr)
+	if err != nil {
+		return false, fmt.Errorf("CIDR not correct: %s", cidrStr)
+	}
+
+	return ipNet.Contains(ip), nil
 }

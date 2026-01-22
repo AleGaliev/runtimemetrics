@@ -97,7 +97,7 @@ func New() (Server, error) {
 		return Server{}, err
 	}
 
-	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer, serverConf.HashKey, eventAudit, cryptoKey)
+	r := handler.CreateMyHandler(memStorage.MemStorage, memStorage.DBConfig, logServer, serverConf.HashKey, eventAudit, cryptoKey, serverConf.TrustedSubnet)
 
 	server := &http.Server{
 		Addr:    serverConf.AdrHost,
