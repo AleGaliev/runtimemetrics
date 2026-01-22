@@ -27,23 +27,22 @@ func MetricValidateMiddleware(keyHash string) func(http.Handler) http.Handler {
 			}
 
 			verifiableHash := req.Header.Get("HashSHA256")
-
 			if !hash.CheckHash(keyHash, verifiableHash, bodyBytes) && verifiableHash != "" {
 				res.WriteHeader(http.StatusBadRequest)
 				return
 			}
 
-			req.Body.Close()
-
 			req.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-			validationBody := io.NopCloser(bytes.NewBuffer(bodyBytes))
+			var raw json.RawMessage
+			if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+				res.WriteHeader(http.StatusBadRequest)
+				return
+			}
 
-			data := json.NewDecoder(validationBody)
-			var metricsData []models.Metrics
-
-			if err := data.Decode(&metricsData); err == nil {
-				for _, m := range metricsData {
+			var metricsList []models.Metrics
+			if err := json.Unmarshal(raw, &metricsList); err == nil {
+				for _, m := range metricsList {
 					if err := MetricValidate(m); err != nil {
 						res.WriteHeader(http.StatusBadRequest)
 						return
@@ -53,20 +52,17 @@ func MetricValidateMiddleware(keyHash string) func(http.Handler) http.Handler {
 				return
 			}
 
-			validationBody = io.NopCloser(bytes.NewBuffer(bodyBytes))
-			data = json.NewDecoder(validationBody)
-			var metrics models.Metrics
-			if err := data.Decode(&metrics); err == nil {
-				if err := MetricValidate(metrics); err != nil {
+			var metric models.Metrics
+			if err := json.Unmarshal(raw, &metric); err == nil {
+				if err := MetricValidate(metric); err != nil {
 					res.WriteHeader(http.StatusBadRequest)
-					fmt.Println(err)
 					return
 				}
-			} else {
-				res.WriteHeader(http.StatusBadRequest)
+				h.ServeHTTP(res, req)
 				return
 			}
-			h.ServeHTTP(res, req)
+
+			res.WriteHeader(http.StatusBadRequest)
 		}
 		return http.HandlerFunc(fn)
 	}
@@ -80,18 +76,16 @@ func MetricValidate(metric models.Metrics) error {
 	if metric.Delta == nil && metric.Value == nil {
 		return nil
 	}
-	switch metric.MType {
 
+	switch metric.MType {
 	case models.Gauge:
 		if metric.Value == nil {
 			return fmt.Errorf("metrics value is nil")
 		}
-
 	case models.Counter:
 		if metric.Delta == nil {
 			return fmt.Errorf("metrics delta is nil")
 		}
-
 	default:
 		return fmt.Errorf("invalid metric type: %s", metric.MType)
 	}

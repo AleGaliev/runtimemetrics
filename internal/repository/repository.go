@@ -17,7 +17,7 @@ type logger interface {
 	CreateResponseLog(statusCode int, large int64)
 }
 
-type cripto interface {
+type crypto interface {
 	Encrypt(data []byte) ([]byte, error)
 }
 
@@ -26,7 +26,7 @@ type HTTPSendler struct {
 	client  *http.Client
 	url     *url.URL
 	logger  logger
-	cripto  cripto
+	crypto  crypto
 	keyHash string
 }
 
@@ -40,7 +40,7 @@ func NewClientConfig(opts ...Option) *HTTPSendler {
 		url:     &url.URL{},
 		logger:  nil,
 		keyHash: "",
-		cripto:  nil,
+		crypto:  nil,
 	}
 
 	for _, opt := range opts {
@@ -50,9 +50,9 @@ func NewClientConfig(opts ...Option) *HTTPSendler {
 	return clientConfig
 }
 
-func WithCripto(cripto cripto) Option {
+func WithCrypto(crypto crypto) Option {
 	return func(h *HTTPSendler) {
-		h.cripto = cripto
+		h.crypto = crypto
 	}
 }
 
@@ -83,7 +83,7 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("could not marshal metrics: %v", err)
 	}
-	jsonMetrics, err = h.cripto.Encrypt(jsonMetrics)
+	jsonMetrics, err = h.crypto.Encrypt(jsonMetrics)
 	if err != nil {
 		return fmt.Errorf("could not encrypt metrics: %v", err)
 	}

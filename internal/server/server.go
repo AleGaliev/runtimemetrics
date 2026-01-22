@@ -13,7 +13,7 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
 	"github.com/AleGaliev/runtimemetrics/internal/repository"
-	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 	"github.com/AleGaliev/runtimemetrics/internal/storage"
 )
@@ -70,7 +70,7 @@ type Server struct {
 	LogServer  logger.Logger
 	EventAudit *observer.Event
 	MemStorage ServerMemStorage
-	CryptoKey  *cripto.Cripto
+	CryptoKey  *crypto.Crypto
 	Server     *http.Server
 }
 
@@ -92,7 +92,7 @@ func New() (Server, error) {
 		return Server{}, err
 	}
 
-	cryptoKey, err := cripto.NewCripto(serverConf.CryptoKey, "")
+	cryptoKey, err := crypto.NewCrypto(serverConf.CryptoKey, "")
 	if err != nil {
 		return Server{}, err
 	}

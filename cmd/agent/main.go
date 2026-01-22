@@ -16,7 +16,7 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/agent"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
 	"github.com/AleGaliev/runtimemetrics/internal/repository"
-	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
 
@@ -55,9 +55,9 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-	pubKey := &cripto.Cripto{}
+	pubKey := &crypto.Crypto{}
 	if arg.cryptoKey != "" {
-		pubKey, err = cripto.NewCripto("", arg.cryptoKey)
+		pubKey, err = crypto.NewCrypto("", arg.cryptoKey)
 		if err != nil {
 			panic(errors.Unwrap(err))
 		}
@@ -67,7 +67,7 @@ func main() {
 		repository.WithLogger(logServer),
 		repository.WithURL(arg.baseURL),
 		repository.WithKeyHash(arg.hashKey),
-		repository.WithCripto(pubKey),
+		repository.WithCrypto(pubKey),
 	)
 
 	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval, arg.RateLimit)

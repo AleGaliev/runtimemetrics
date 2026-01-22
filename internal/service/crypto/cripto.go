@@ -1,4 +1,4 @@
-package cripto
+package crypto
 
 import (
 	"crypto/rand"
@@ -10,7 +10,7 @@ import (
 	"os"
 )
 
-type Cripto struct {
+type Crypto struct {
 	publicKey  *rsa.PublicKey
 	privateKey *rsa.PrivateKey
 }
@@ -64,7 +64,7 @@ func loadPrivateKey(path string) (*rsa.PrivateKey, error) {
 	return rsaPriv, nil
 }
 
-func NewCripto(pathPrivateKey, pathPublicKey string) (*Cripto, error) {
+func NewCrypto(pathPrivateKey, pathPublicKey string) (*Crypto, error) {
 
 	var (
 		publicKey  *rsa.PublicKey
@@ -84,13 +84,13 @@ func NewCripto(pathPrivateKey, pathPublicKey string) (*Cripto, error) {
 			return nil, err
 		}
 	}
-	return &Cripto{
+	return &Crypto{
 		publicKey:  publicKey,
 		privateKey: privateKey,
 	}, nil
 }
 
-func (c *Cripto) Encrypt(data []byte) ([]byte, error) {
+func (c *Crypto) Encrypt(data []byte) ([]byte, error) {
 	if c.publicKey == nil {
 		return data, nil
 	}
@@ -109,7 +109,7 @@ func (c *Cripto) Encrypt(data []byte) ([]byte, error) {
 	return encrypted, nil
 }
 
-func (c *Cripto) Decrypt(data []byte) ([]byte, error) {
+func (c *Crypto) Decrypt(data []byte) ([]byte, error) {
 	if c.privateKey == nil {
 		return data, nil
 	}
