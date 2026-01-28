@@ -22,22 +22,29 @@ var (
 
 func main() {
 	srv, err := server.New()
-	defer srv.Close()
-
 	if err != nil {
 		log.Fatal(errors.Unwrap(err))
 	}
+	defer srv.Close()
+
 	srv.LogServer.CreateVersionLog(serviceName, buildVersion, buildDate, buildCommit)
 	ctx, cansel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, os.Interrupt)
 	defer cansel()
+
 	go func() {
-		if err := srv.Server.ListenAndServe(); err != nil {
+		if err := srv.StartHttpServer(); err != nil {
+			log.Fatal(errors.Unwrap(err))
+		}
+	}()
+
+	go func() {
+		if err := srv.StartGrpcServer(); err != nil {
 			log.Fatal(errors.Unwrap(err))
 		}
 	}()
 
 	<-ctx.Done()
-	if err := srv.Server.Shutdown(ctx); err != nil {
+	if err := srv.Stop(ctx); err != nil {
 		log.Fatal(errors.Unwrap(err))
 	}
 }

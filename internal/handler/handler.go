@@ -11,7 +11,7 @@ import (
 
 	"github.com/AleGaliev/runtimemetrics/internal/middleware"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
-	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
 	"github.com/go-chi/chi/v5"
 )
@@ -65,7 +65,7 @@ type MyHandler struct {
 //   - eventAudit: event audit observer
 //
 // Returns configured HTTP handler
-func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event, cryptoKey *cripto.Cripto, trustedSubnet string) http.Handler {
+func CreateMyHandler(storage Storage, connector connector, logger middleware.Logger, hashKey string, eventAudit *observer.Event, cryptoKey *crypto.Crypto, trustedSubnet string) http.Handler {
 	h := &MyHandler{
 		storage:   storage,
 		connector: connector,
@@ -74,8 +74,8 @@ func CreateMyHandler(storage Storage, connector connector, logger middleware.Log
 
 	mux := chi.NewRouter()
 	muxWithMiddlewares := mux.With(
-		middleware.IPValidateMiddleware(trustedSubnet),
 		middleware.MiddlewareHandlerLogger(logger),
+		middleware.IPValidateMiddleware(trustedSubnet),
 		middleware.GzipMiddlewareHandler(),
 		middleware.MiddlewareDecrypt(cryptoKey),
 		middleware.MetricValidateMiddleware(hashKey),

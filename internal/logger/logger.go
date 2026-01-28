@@ -25,9 +25,10 @@ func CreateLogger() (Logger, error) {
 	return Logger{sugar}, nil
 }
 
-func (l Logger) StartServerLog(addr string) {
+func (l Logger) StartServerLog(types, addr string) {
 	l.logger.Infow(
 		"Starting server",
+		"types", types,
 		"addr", addr,
 	)
 }

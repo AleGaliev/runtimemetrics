@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -16,7 +15,7 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/agent"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
 	"github.com/AleGaliev/runtimemetrics/internal/repository"
-	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 )
 
@@ -26,16 +25,18 @@ var (
 	buildCommit  string = "N/A"
 	serviceName  string = "agent"
 
-	defaultPollInterval   int    = 2
-	defaultReportInterval int    = 10
+	defaultPollInterval   int    = 10
+	defaultReportInterval int    = 2
 	defaultRateLimit      int    = 10
 	defaultBaseURL        string = "localhost:8080"
 	defaultHashKey        string = ""
 	defaultCryptoKey      string = ""
+	defaultAdrHostGrpc    string = ""
 )
 
 type flagsAgent struct {
 	baseURL        string `json:"address"`
+	adrHostGrpc    string `json:"address_grpc"`
 	hashKey        string `json:"hash_key"`
 	cryptoKey      string `json:"crypto_key"`
 	pollInterval   int    `json:"poll_interval"`
@@ -55,9 +56,9 @@ func main() {
 	if err != nil {
 		panic(errors.Unwrap(err))
 	}
-	pubKey := &cripto.Cripto{}
+	pubKey := &crypto.Crypto{}
 	if arg.cryptoKey != "" {
-		pubKey, err = cripto.NewCripto("", arg.cryptoKey)
+		pubKey, err = crypto.NewCrypto("", arg.cryptoKey)
 		if err != nil {
 			panic(errors.Unwrap(err))
 		}
@@ -66,24 +67,30 @@ func main() {
 	clientCfg := repository.NewClientConfig(
 		repository.WithLogger(logServer),
 		repository.WithURL(arg.baseURL),
+		repository.WithGrpcClient(arg.adrHostGrpc),
 		repository.WithKeyHash(arg.hashKey),
-		repository.WithCripto(pubKey),
+		repository.WithCrypto(pubKey),
 	)
 
-	agentCfg, err := agent.NewAgentConfig(clientCfg, retry.CreateRetry(), arg.pollInterval, arg.reportInterval, arg.RateLimit)
-	if err != nil {
-		log.Fatalf("error parsing agent config: %v", errors.Unwrap(err))
-	}
+	agent := agent.New(*clientCfg,
+		agent.WithBaseURL(arg.baseURL),
+		agent.WithGRPCHost(arg.adrHostGrpc),
+		agent.WithRetry(retry.CreateRetry()),
+		agent.WithWorkers(arg.RateLimit),
+		agent.WithReportInterval(arg.reportInterval),
+		agent.WithPollInterval(arg.pollInterval),
+	)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, os.Interrupt)
 	defer cancel()
-	if err = agentCfg.Run(ctx); err != nil {
+	if err = agent.Run(ctx); err != nil {
 		panic(err)
 	}
 }
 
 func initConfig() (flagsAgent, error) {
 	baseURL := flag.String("a", defaultBaseURL, "Endpoint http server")
+	adrHostGrpc := flag.String("ag", defaultAdrHostGrpc, "Endpoint grpc server")
 	pollInterval := flag.Int("p", defaultPollInterval, "Interval poll metrics")
 	reportInterval := flag.Int("r", defaultReportInterval, "Interval report metrics")
 	rateLimit := flag.Int("l", defaultRateLimit, "Interval poll metrics")
@@ -99,6 +106,10 @@ func initConfig() (flagsAgent, error) {
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
 	if ok {
 		baseURL = &varAdrHost
+	}
+	varAdrHostGrpc, ok := os.LookupEnv("ADDRESS_GRPC")
+	if ok {
+		adrHostGrpc = &varAdrHostGrpc
 	}
 	varPollInterval, ok := os.LookupEnv("POLL_INTERVAL")
 	if ok {
@@ -135,6 +146,7 @@ func initConfig() (flagsAgent, error) {
 
 	resultFlags := flagsAgent{
 		baseURL:        *baseURL,
+		adrHostGrpc:    *adrHostGrpc,
 		pollInterval:   *pollInterval,
 		reportInterval: *reportInterval,
 		hashKey:        *hashKey,
@@ -191,5 +203,8 @@ func (flags *flagsAgent) convertFlagsResult(flagsInFile flagsAgent) {
 	}
 	if flags.RateLimit == defaultRateLimit {
 		flags.RateLimit = flagsInFile.RateLimit
+	}
+	if flags.adrHostGrpc == defaultAdrHostGrpc {
+		flags.adrHostGrpc = flagsInFile.adrHostGrpc
 	}
 }

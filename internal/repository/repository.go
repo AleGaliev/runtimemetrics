@@ -3,37 +3,48 @@ package repository
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
 	models "github.com/AleGaliev/runtimemetrics/internal/model"
+	pb "github.com/AleGaliev/runtimemetrics/internal/proto"
+	"github.com/AleGaliev/runtimemetrics/internal/proto/convertor"
 	"github.com/AleGaliev/runtimemetrics/internal/service/hash"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 type logger interface {
 	CreateResponseLog(statusCode int, large int64)
 }
 
-type cripto interface {
+type crypto interface {
 	Encrypt(data []byte) ([]byte, error)
 }
 
 //generate:reset
 type HTTPSendler struct {
-	client  *http.Client
-	url     *url.URL
-	logger  logger
-	cripto  cripto
-	keyHash string
+	client     *http.Client
+	grpcClient pb.MetricsClient
+	url        *url.URL
+	logger     logger
+	crypto     crypto
+	keyHash    string
+	localIP    string
 }
 
 type Option func(*HTTPSendler)
 
 func NewClientConfig(opts ...Option) *HTTPSendler {
+	ip := getLocalIP()
+
 	clientConfig := &HTTPSendler{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
@@ -41,7 +52,8 @@ func NewClientConfig(opts ...Option) *HTTPSendler {
 		url:     &url.URL{},
 		logger:  nil,
 		keyHash: "",
-		cripto:  nil,
+		crypto:  nil,
+		localIP: ip,
 	}
 
 	for _, opt := range opts {
@@ -51,9 +63,38 @@ func NewClientConfig(opts ...Option) *HTTPSendler {
 	return clientConfig
 }
 
-func WithCripto(cripto cripto) Option {
+func WithGrpcClient(grpcHost string) Option {
 	return func(h *HTTPSendler) {
-		h.cripto = cripto
+
+		if grpcHost == "" {
+			return
+		}
+
+		conn, err := grpc.NewClient(grpcHost,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any,
+				cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+
+				md := metadata.Pairs("x-real-ip", h.localIP)
+				ctx = metadata.NewOutgoingContext(ctx, md)
+
+				return invoker(ctx, method, req, reply, cc, opts...)
+			}),
+		)
+
+		if err != nil {
+			os.Exit(1)
+		}
+
+		grpcClient := pb.NewMetricsClient(conn)
+
+		h.grpcClient = grpcClient
+	}
+}
+
+func WithCrypto(crypto crypto) Option {
+	return func(h *HTTPSendler) {
+		h.crypto = crypto
 	}
 }
 
@@ -84,7 +125,7 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	if err != nil {
 		return fmt.Errorf("could not marshal metrics: %v", err)
 	}
-	jsonMetrics, err = h.cripto.Encrypt(jsonMetrics)
+	jsonMetrics, err = h.crypto.Encrypt(jsonMetrics)
 	if err != nil {
 		return fmt.Errorf("could not encrypt metrics: %v", err)
 	}
@@ -110,7 +151,7 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	request.Header.Set("Content-Encoding", "gzip")
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept-Encoding", "gzip")
-	request.Header.Set("X-Real-IP", getLocalIP())
+	request.Header.Set("X-Real-IP", h.localIP)
 
 	response, err := h.MiddlewareLoggerDo(request)
 	if err != nil {
@@ -148,4 +189,18 @@ func getLocalIP() string {
 		}
 	}
 	return "127.0.0.1"
+}
+
+func (h HTTPSendler) UpdateMetrics(metrics []models.Metrics) error {
+	pbMetrics := convertor.ConvertMetricsSliceToProto(metrics)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	_, err := h.grpcClient.UpdateMetrics(ctx, pb.UpdateMetricsRequest_builder{
+		Metrics: pbMetrics,
+	}.Build())
+
+	if err != nil {
+		return fmt.Errorf("failed update metrics: %w", err)
+	}
+	return nil
 }

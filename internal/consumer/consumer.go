@@ -12,42 +12,83 @@ import (
 
 type Rep interface {
 	SendMetricsRequest(metrics []models.Metrics) error
+	UpdateMetrics(metrics []models.Metrics) error
 }
 
 type Retry interface {
 	RetryConnection(dbFunction func() error) error
 }
 
-type MetricsConsumer struct {
+type Consumer struct {
 	rep            Rep
 	Retry          Retry
 	metrics        chan []models.Metrics
 	workers        int
 	reportInterval int
+	grpc           bool
 }
 
-func NewMetricsConsumer(workers, reportInterval int, rep Rep, retry Retry, metrics chan []models.Metrics) *MetricsConsumer {
-	return &MetricsConsumer{
+type Option func(*Consumer)
+
+func New(metrics chan []models.Metrics, opts ...Option) *Consumer {
+	clientConfig := &Consumer{
 		metrics:        metrics,
-		workers:        workers,
-		reportInterval: reportInterval,
-		rep:            rep,
-		Retry:          retry,
+		workers:        1,
+		reportInterval: 10,
+		grpc:           false,
+	}
+
+	for _, opt := range opts {
+		opt(clientConfig)
+	}
+
+	return clientConfig
+}
+
+func WithRep(rep Rep) Option {
+	return func(consumer *Consumer) {
+		consumer.rep = rep
 	}
 }
 
-func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
-	ticker := time.NewTicker(time.Duration(mc.reportInterval) * time.Second)
+func WithRetry(retry Retry) Option {
+	return func(consumer *Consumer) {
+		consumer.Retry = retry
+	}
+}
+
+func WithWorkers(workers int) Option {
+	return func(consumer *Consumer) {
+		consumer.workers = workers
+	}
+}
+
+func WithReportInterval(reportInterval int) Option {
+	return func(consumer *Consumer) {
+		consumer.reportInterval = reportInterval
+	}
+}
+
+func WithGrpc(grpcAdr string) Option {
+	return func(consumer *Consumer) {
+		if grpcAdr != "" {
+			consumer.grpc = true
+		}
+	}
+}
+
+func (c *Consumer) ConsumerRun(ctx context.Context) error {
+	ticker := time.NewTicker(time.Duration(c.reportInterval) * time.Second)
 	defer ticker.Stop()
 	errCh := make(chan error, 1)
 	jobs := make(chan []models.Metrics, 100)
 	wg := &sync.WaitGroup{}
 
-	for w := 1; w <= mc.workers; w++ {
+	for w := 1; w <= c.workers; w++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if err := mc.ConsumerWorker(jobs); err != nil {
+			if err := c.ConsumerWorker(jobs); err != nil {
 				errCh <- fmt.Errorf("consumer worker failed: %w", err)
 				log.Printf("Consumer worker failed: %v", err)
 			}
@@ -57,13 +98,13 @@ func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				for metrics := range mc.metrics {
+				for metrics := range c.metrics {
 					jobs <- metrics
 				}
 				close(jobs)
 				return
 			case <-ticker.C:
-				metrics := collectInitialMetrics(mc.metrics)
+				metrics := collectInitialMetrics(c.metrics)
 				for _, m := range metrics {
 					jobs <- m
 				}
@@ -80,10 +121,16 @@ func (mc *MetricsConsumer) ConsumerRun(ctx context.Context) error {
 	}
 }
 
-func (mc *MetricsConsumer) ConsumerWorker(metrics <-chan []models.Metrics) error {
+func (c *Consumer) ConsumerWorker(metrics <-chan []models.Metrics) error {
 	for metric := range metrics {
-		if err := mc.Retry.RetryConnection(func() error {
-			if err := mc.rep.SendMetricsRequest(metric); err != nil {
+		if c.grpc {
+			if err := c.rep.UpdateMetrics(metric); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := c.Retry.RetryConnection(func() error {
+			if err := c.rep.SendMetricsRequest(metric); err != nil {
 				return err
 			}
 			return nil

@@ -11,6 +11,7 @@ import (
 
 var (
 	defaultAdrHost         string = "localhost:8080"
+	defaultAdrHostGrpc     string = ""
 	defaultFileStoragePath string = "storage.json"
 	defaultDatabaseDSN     string = ""
 	defaultHashKey         string = ""
@@ -24,6 +25,7 @@ var (
 
 type ServerConfig struct {
 	AdrHost         string `json:"address"`
+	AdrHostGrpc     string `json:"address_grpc"`
 	FileStoragePath string `json:"store_file"`
 	DatabaseDSN     string `json:"database_dsn"`
 	HashKey         string `json:"hash_key"`
@@ -37,6 +39,7 @@ type ServerConfig struct {
 
 func NewServerConfig() (ServerConfig, error) {
 	adrHost := flag.String("a", defaultAdrHost, "Endpoint http server")
+	adrHostGrpc := flag.String("ag", defaultAdrHostGrpc, "Endpoint grpc server")
 	storeInterval := flag.Int("i", defaultStoreInterval, "interval save metrics in storage")
 	fileStoragePath := flag.String("f", defaultFileStoragePath, "filepath save metric storage")
 	databaseDSN := flag.String("d", defaultDatabaseDSN, "database DSN")
@@ -57,6 +60,10 @@ func NewServerConfig() (ServerConfig, error) {
 	varAdrHost, ok := os.LookupEnv("ADDRESS")
 	if ok {
 		adrHost = &varAdrHost
+	}
+	varAdrHostGrpc, ok := os.LookupEnv("ADDRESS_GRPC")
+	if ok {
+		adrHostGrpc = &varAdrHostGrpc
 	}
 	varStoreInterval, ok := os.LookupEnv("STORE_INTERVAL")
 	if ok {
@@ -103,6 +110,7 @@ func NewServerConfig() (ServerConfig, error) {
 
 	resultServerConfig := ServerConfig{
 		AdrHost:         *adrHost,
+		AdrHostGrpc:     *adrHostGrpc,
 		StoreInterval:   *storeInterval,
 		FileStoragePath: *fileStoragePath,
 		Restore:         *restore,
@@ -147,6 +155,9 @@ func readConfigFile(filePath string) (ServerConfig, error) {
 func (flags *ServerConfig) convertFlagsResult(flagsInFile ServerConfig) {
 	if flags.AdrHost == defaultAdrHost {
 		flags.AdrHost = flagsInFile.AdrHost
+	}
+	if flags.AdrHostGrpc == defaultAdrHostGrpc {
+		flags.AdrHostGrpc = flagsInFile.AdrHostGrpc
 	}
 	if flags.StoreInterval == defaultStoreInterval {
 		flags.StoreInterval = flagsInFile.StoreInterval

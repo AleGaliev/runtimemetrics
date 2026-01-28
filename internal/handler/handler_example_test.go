@@ -11,6 +11,7 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/handler"
 	log "github.com/AleGaliev/runtimemetrics/internal/logger"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/mocks"
 	"github.com/golang/mock/gomock"
 )
@@ -24,7 +25,7 @@ func ExampleMyHandler_ServeHTTPUpdate() {
 	connector := mocks.NewMockconnector(ctrl)
 	eventAudit := observer.NewEvent()
 	storage.EXPECT().UpdateMetrics(gomock.Any()).Return(nil)
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -59,7 +60,7 @@ func ExampleMyHandler_ServeHTTPValue() {
 	eventAudit := observer.NewEvent()
 
 	storage.EXPECT().ValueMetrics(gomock.Any()).Return([]byte(`{"id":"memory_usage","type":"gauge","value":75.3}`), true, nil)
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -95,7 +96,7 @@ func ExampleMyHandler_GetValue() {
 	eventAudit := observer.NewEvent()
 
 	storage.EXPECT().GetMetrics("disk_space").Return("500.0", true)
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -125,7 +126,7 @@ func ExampleMyHandler_ListMetrics() {
 	eventAudit := observer.NewEvent()
 	storage.EXPECT().GetAllMetric().Return("<li>test_metric: 42.5</li>", nil)
 
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -150,7 +151,7 @@ func ExampleMyHandler_ServeHTTP() {
 	connector := mocks.NewMockconnector(ctrl)
 	eventAudit := observer.NewEvent()
 	storage.EXPECT().AddMetric("gauge", "test", "1.5").Return(nil)
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 
@@ -175,7 +176,7 @@ func ExampleMyHandler_ServeHTTPBatchUpdate() {
 	connector := mocks.NewMockconnector(ctrl)
 	eventAudit := observer.NewEvent()
 	storage.EXPECT().BatchUpdateMetrics(gomock.Any()).Return(nil)
-	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, nil)
+	h := handler.CreateMyHandler(storage, connector, logger, "", eventAudit, &crypto.Crypto{}, "")
 	server := httptest.NewServer(h)
 	defer server.Close()
 

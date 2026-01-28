@@ -1,8 +1,10 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -11,11 +13,14 @@ import (
 	"github.com/AleGaliev/runtimemetrics/internal/filestore"
 	"github.com/AleGaliev/runtimemetrics/internal/handler"
 	"github.com/AleGaliev/runtimemetrics/internal/logger"
+	"github.com/AleGaliev/runtimemetrics/internal/middleware"
 	"github.com/AleGaliev/runtimemetrics/internal/observer"
+	pb "github.com/AleGaliev/runtimemetrics/internal/proto"
 	"github.com/AleGaliev/runtimemetrics/internal/repository"
-	"github.com/AleGaliev/runtimemetrics/internal/service/cripto"
+	"github.com/AleGaliev/runtimemetrics/internal/service/crypto"
 	"github.com/AleGaliev/runtimemetrics/internal/service/retry"
 	"github.com/AleGaliev/runtimemetrics/internal/storage"
+	"google.golang.org/grpc"
 )
 
 type ServerMemStorage struct {
@@ -70,8 +75,9 @@ type Server struct {
 	LogServer  logger.Logger
 	EventAudit *observer.Event
 	MemStorage ServerMemStorage
-	CryptoKey  *cripto.Cripto
+	CryptoKey  *crypto.Crypto
 	Server     *http.Server
+	GrpcServer *grpc.Server
 }
 
 func New() (Server, error) {
@@ -92,7 +98,7 @@ func New() (Server, error) {
 		return Server{}, err
 	}
 
-	cryptoKey, err := cripto.NewCripto(serverConf.CryptoKey, "")
+	cryptoKey, err := crypto.NewCrypto(serverConf.CryptoKey, "")
 	if err != nil {
 		return Server{}, err
 	}
@@ -104,6 +110,15 @@ func New() (Server, error) {
 		Handler: r,
 	}
 
+	serverGrpc := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			middleware.LoggingInterceptor(logServer),
+			middleware.IPValidateInterceptor(serverConf.TrustedSubnet),
+		),
+	)
+
+	pb.RegisterMetricsServer(serverGrpc, handler.NewUserServer(memStorage.MemStorage))
+
 	return Server{
 		ServerConf: serverConf,
 		LogServer:  logServer,
@@ -111,6 +126,7 @@ func New() (Server, error) {
 		MemStorage: memStorage,
 		CryptoKey:  cryptoKey,
 		Server:     server,
+		GrpcServer: serverGrpc,
 	}, nil
 
 }
@@ -136,4 +152,33 @@ func createEventAudit(auditFile, auditURL string) *observer.Event {
 
 func (s *Server) Close() {
 	s.MemStorage.DBConfig.Close()
+}
+
+func (s *Server) StartGrpcServer() error {
+	s.LogServer.StartServerLog("grpc", s.ServerConf.AdrHostGrpc)
+	listen, err := net.Listen("tcp", s.ServerConf.AdrHostGrpc)
+	if err != nil {
+		return err
+	}
+	if err = s.GrpcServer.Serve(listen); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) StartHttpServer() error {
+	s.LogServer.StartServerLog("http", s.Server.Addr)
+	if err := s.Server.ListenAndServe(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	var err error
+
+	err = s.Server.Shutdown(ctx)
+	s.GrpcServer.GracefulStop()
+
+	return err
 }
