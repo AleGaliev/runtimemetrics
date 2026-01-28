@@ -35,12 +35,12 @@ var (
 )
 
 type flagsAgent struct {
-	baseURL        string `json:"address"`
-	adrHostGrpc    string `json:"address_grpc"`
-	hashKey        string `json:"hash_key"`
-	cryptoKey      string `json:"crypto_key"`
-	pollInterval   int    `json:"poll_interval"`
-	reportInterval int    `json:"report_interval"`
+	BaseURL        string `json:"address"`
+	AdrHostGrpc    string `json:"address_grpc"`
+	HashKey        string `json:"hash_key"`
+	CryptoKey      string `json:"crypto_key"`
+	PollInterval   int    `json:"poll_interval"`
+	ReportInterval int    `json:"report_interval"`
 	RateLimit      int    `json:"rate_limit"`
 }
 
@@ -57,8 +57,8 @@ func main() {
 		panic(errors.Unwrap(err))
 	}
 	pubKey := &crypto.Crypto{}
-	if arg.cryptoKey != "" {
-		pubKey, err = crypto.NewCrypto("", arg.cryptoKey)
+	if arg.CryptoKey != "" {
+		pubKey, err = crypto.NewCrypto("", arg.CryptoKey)
 		if err != nil {
 			panic(errors.Unwrap(err))
 		}
@@ -66,19 +66,19 @@ func main() {
 
 	clientCfg := repository.NewClientConfig(
 		repository.WithLogger(logServer),
-		repository.WithURL(arg.baseURL),
-		repository.WithGrpcClient(arg.adrHostGrpc),
-		repository.WithKeyHash(arg.hashKey),
+		repository.WithURL(arg.BaseURL),
+		repository.WithGrpcClient(arg.AdrHostGrpc),
+		repository.WithKeyHash(arg.HashKey),
 		repository.WithCrypto(pubKey),
 	)
 
 	agent := agent.New(*clientCfg,
-		agent.WithBaseURL(arg.baseURL),
-		agent.WithGRPCHost(arg.adrHostGrpc),
+		agent.WithBaseURL(arg.BaseURL),
+		agent.WithGRPCHost(arg.AdrHostGrpc),
 		agent.WithRetry(retry.CreateRetry()),
 		agent.WithWorkers(arg.RateLimit),
-		agent.WithReportInterval(arg.reportInterval),
-		agent.WithPollInterval(arg.pollInterval),
+		agent.WithReportInterval(arg.ReportInterval),
+		agent.WithPollInterval(arg.PollInterval),
 	)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL, os.Interrupt)
@@ -145,13 +145,13 @@ func initConfig() (flagsAgent, error) {
 	}
 
 	resultFlags := flagsAgent{
-		baseURL:        *baseURL,
-		adrHostGrpc:    *adrHostGrpc,
-		pollInterval:   *pollInterval,
-		reportInterval: *reportInterval,
-		hashKey:        *hashKey,
+		BaseURL:        *baseURL,
+		AdrHostGrpc:    *adrHostGrpc,
+		PollInterval:   *pollInterval,
+		ReportInterval: *reportInterval,
+		HashKey:        *hashKey,
 		RateLimit:      *rateLimit,
-		cryptoKey:      *cryptoKey,
+		CryptoKey:      *cryptoKey,
 	}
 
 	if *fileConfig != "" {
@@ -186,25 +186,25 @@ func readConfigFile(filePath string) (flagsAgent, error) {
 }
 
 func (flags *flagsAgent) convertFlagsResult(flagsInFile flagsAgent) {
-	if flags.baseURL == defaultBaseURL {
-		flags.baseURL = flagsInFile.baseURL
+	if flags.BaseURL == defaultBaseURL {
+		flags.BaseURL = flagsInFile.BaseURL
 	}
-	if flags.hashKey == defaultHashKey {
-		flags.hashKey = flagsInFile.hashKey
+	if flags.HashKey == defaultHashKey {
+		flags.HashKey = flagsInFile.HashKey
 	}
-	if flags.cryptoKey == defaultCryptoKey {
-		flags.cryptoKey = flagsInFile.cryptoKey
+	if flags.CryptoKey == defaultCryptoKey {
+		flags.CryptoKey = flagsInFile.CryptoKey
 	}
-	if flags.pollInterval == defaultPollInterval {
-		flags.pollInterval = flagsInFile.pollInterval
+	if flags.PollInterval == defaultPollInterval {
+		flags.PollInterval = flagsInFile.PollInterval
 	}
-	if flags.reportInterval == defaultReportInterval {
-		flags.reportInterval = flagsInFile.reportInterval
+	if flags.ReportInterval == defaultReportInterval {
+		flags.ReportInterval = flagsInFile.ReportInterval
 	}
 	if flags.RateLimit == defaultRateLimit {
 		flags.RateLimit = flagsInFile.RateLimit
 	}
-	if flags.adrHostGrpc == defaultAdrHostGrpc {
-		flags.adrHostGrpc = flagsInFile.adrHostGrpc
+	if flags.AdrHostGrpc == defaultAdrHostGrpc {
+		flags.AdrHostGrpc = flagsInFile.AdrHostGrpc
 	}
 }

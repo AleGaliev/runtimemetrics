@@ -140,7 +140,7 @@ func IPValidateInterceptor(cidr string) grpc.UnaryServerInterceptor {
 			for _, ip := range ipMeta {
 				isInRange, err := IsIPInCIDR(ip, cidr)
 				if err != nil {
-					return nil, status.Errorf(codes.PermissionDenied, err.Error())
+					return nil, status.Errorf(codes.PermissionDenied, "ip problem format")
 				}
 				if !isInRange {
 					return nil, status.Errorf(codes.PermissionDenied,

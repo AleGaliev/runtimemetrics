@@ -166,7 +166,7 @@ func (s *Server) StartGrpcServer() error {
 	return nil
 }
 
-func (s *Server) StartHttpServer() error {
+func (s *Server) StartHTTPServer() error {
 	s.LogServer.StartServerLog("http", s.Server.Addr)
 	if err := s.Server.ListenAndServe(); err != nil {
 		return err
@@ -175,9 +175,7 @@ func (s *Server) StartHttpServer() error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	var err error
-
-	err = s.Server.Shutdown(ctx)
+	err := s.Server.Shutdown(ctx)
 	s.GrpcServer.GracefulStop()
 
 	return err

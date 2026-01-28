@@ -32,7 +32,7 @@ func main() {
 	defer cansel()
 
 	go func() {
-		if err := srv.StartHttpServer(); err != nil {
+		if err := srv.StartHTTPServer(); err != nil {
 			log.Fatal(errors.Unwrap(err))
 		}
 	}()
