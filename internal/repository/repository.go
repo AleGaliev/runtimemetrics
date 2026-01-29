@@ -30,7 +30,7 @@ type crypto interface {
 }
 
 //generate:reset
-type HTTPSendler struct {
+type HTTPSender struct {
 	client     *http.Client
 	grpcClient pb.MetricsClient
 	url        *url.URL
@@ -40,12 +40,12 @@ type HTTPSendler struct {
 	localIP    string
 }
 
-type Option func(*HTTPSendler)
+type Option func(*HTTPSender)
 
-func NewClientConfig(opts ...Option) *HTTPSendler {
+func NewClientConfig(opts ...Option) *HTTPSender {
 	ip := getLocalIP()
 
-	clientConfig := &HTTPSendler{
+	clientConfig := &HTTPSender{
 		client: &http.Client{
 			Timeout: 2 * time.Second,
 		},
@@ -64,7 +64,7 @@ func NewClientConfig(opts ...Option) *HTTPSendler {
 }
 
 func WithGrpcClient(grpcHost string) Option {
-	return func(h *HTTPSendler) {
+	return func(h *HTTPSender) {
 
 		if grpcHost == "" {
 			return
@@ -93,13 +93,13 @@ func WithGrpcClient(grpcHost string) Option {
 }
 
 func WithCrypto(crypto crypto) Option {
-	return func(h *HTTPSendler) {
+	return func(h *HTTPSender) {
 		h.crypto = crypto
 	}
 }
 
 func WithURL(baseURL string) Option {
-	return func(h *HTTPSendler) {
+	return func(h *HTTPSender) {
 		h.url = &url.URL{
 			Scheme: "http",
 			Host:   baseURL,
@@ -109,18 +109,18 @@ func WithURL(baseURL string) Option {
 }
 
 func WithKeyHash(keyHash string) Option {
-	return func(h *HTTPSendler) {
+	return func(h *HTTPSender) {
 		h.keyHash = keyHash
 	}
 }
 
 func WithLogger(logger logger) Option {
-	return func(h *HTTPSendler) {
+	return func(h *HTTPSender) {
 		h.logger = logger
 	}
 }
 
-func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
+func (h HTTPSender) SendMetricsRequest(metrics []models.Metrics) error {
 	jsonMetrics, err := json.Marshal(metrics)
 	if err != nil {
 		return fmt.Errorf("could not marshal metrics: %v", err)
@@ -166,7 +166,7 @@ func (h HTTPSendler) SendMetricsRequest(metrics []models.Metrics) error {
 	return nil
 }
 
-func (h HTTPSendler) MiddlewareLoggerDo(req *http.Request) (*http.Response, error) {
+func (h HTTPSender) MiddlewareLoggerDo(req *http.Request) (*http.Response, error) {
 	response, err := h.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -191,7 +191,7 @@ func getLocalIP() string {
 	return "127.0.0.1"
 }
 
-func (h HTTPSendler) UpdateMetrics(metrics []models.Metrics) error {
+func (h HTTPSender) UpdateMetrics(metrics []models.Metrics) error {
 	pbMetrics := convertor.ConvertMetricsSliceToProto(metrics)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -134,21 +133,17 @@ func NewServerConfig() (ServerConfig, error) {
 }
 
 func readConfigFile(filePath string) (ServerConfig, error) {
-	file, err := os.OpenFile(filePath, os.O_RDONLY, 0o666)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return ServerConfig{}, fmt.Errorf("could not open config file: %w", err)
 	}
-	scanner := bufio.NewScanner(file)
-	if !scanner.Scan() {
-		return ServerConfig{}, fmt.Errorf("could not read config file: %w", scanner.Err())
-	}
 
-	data := scanner.Bytes()
 	var flags ServerConfig
 	err = json.Unmarshal(data, &flags)
 	if err != nil {
-		return ServerConfig{}, fmt.Errorf("could not open config file: %w", err)
+		return ServerConfig{}, fmt.Errorf("could not parse config file: %w", err)
 	}
+
 	return flags, nil
 }
 

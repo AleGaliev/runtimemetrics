@@ -15,7 +15,7 @@ type Rep interface {
 }
 
 type Agent struct {
-	Rep            repository.HTTPSendler
+	Rep            repository.HTTPSender
 	BaseURL        *string
 	grpcHost       string
 	retry          retry.Retry
@@ -28,7 +28,7 @@ type Agent struct {
 
 type Option func(*Agent)
 
-func New(rep repository.HTTPSendler, opts ...Option) *Agent {
+func New(rep repository.HTTPSender, opts ...Option) *Agent {
 	agent := &Agent{
 		Rep:       rep,
 		pollCount: 1,
@@ -60,13 +60,13 @@ func WithRetry(retry retry.Retry) Option {
 	}
 }
 
-func WithoutPollCount(pollCount int) Option {
+func WithPollCount(pollCount int) Option {
 	return func(agent *Agent) {
 		agent.pollCount = pollCount
 	}
 }
 
-func WithoutCounter(counter int) Option {
+func WithCounter(counter int) Option {
 	return func(agent *Agent) {
 		agent.counter = counter
 	}

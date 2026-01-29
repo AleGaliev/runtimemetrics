@@ -27,7 +27,7 @@ func TestSendMetrics_SendMetricsRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	clientCfg := HTTPSendler{
+	clientCfg := HTTPSender{
 		client: server.Client(),
 		url:    &url.URL{Scheme: httpURL.Scheme, Host: httpURL.Host, Path: httpURL.Path},
 		logger: loggerAgent,
